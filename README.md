@@ -126,7 +126,20 @@ forge script script/DeployPolygon.s.sol:DeployPolygon \
 
 add BRIDGE_RECEIVER_ADDRESS and WRAPPED_OPINION_TOKEN_ADDRESS into .env
 
-### 5. Deploy Polygon Contracts
+### 5. Config DVN
+```bash
+# Set peer on BSC
+forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesBSC()" \
+--rpc-url $BSC_RPC_URL \
+--broadcast
+
+# Set peer on Polygon
+forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesPolygon()" \
+--rpc-url $POLYGON_RPC_URL \
+--broadcast
+```
+
+### 6. Set Peers
 
 ```bash
 # Set peer on BSC
@@ -140,19 +153,33 @@ forge script script/SetPeers.s.sol:SetPeerPolygon \
   --broadcast
 ```
 
-### 6. Config DVN
+### 7. Set DstGas
+
 ```bash
 # Set peer on BSC
-forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesBSC()" \
---rpc-url $BSC_RPC_URL \
---broadcast
+forge script script/SetDstGasLimit.s.sol:SetDstGasLimitBSC \
+  --rpc-url $BSC_RPC_URL \
+  --broadcast
 
 # Set peer on Polygon
-forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesPolygon()" \
---rpc-url $POLYGON_RPC_URL \
---broadcast
+forge script script/SetDstGasLimit.s.sol:SetDstGasLimitPolygon \
+  --rpc-url $POLYGON_RPC_URL \
+  --broadcast
 ```
 
+### 8. Unpause contracts
+
+```bash
+# Set peer on BSC
+forge script script/UnpauseContracts.s..sol:UnpauseBSC \
+  --rpc-url $BSC_RPC_URL \
+  --broadcast
+
+# Set peer on Polygon
+forge script script/UnpauseContracts.s.sol:UnpausePolygon \
+  --rpc-url $POLYGON_RPC_URL \
+  --broadcast
+```
 
 ### Usage
 

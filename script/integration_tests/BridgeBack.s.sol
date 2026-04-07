@@ -1,7 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+
 import {Script, console} from "forge-std/Script.sol";
-import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+
+/// @notice Burns WrappedOpinionToken on Polygon and sends an unlock message to
+///         OpinionEscrow on BSC, releasing the original Opinion shares to _bscRecipient.
+///
+/// ─── Required env vars ───────────────────────────────────────────────────────
+///
+///   DEPLOYER_PRIVATE_KEY            Wallet that holds the wrapped tokens
+///   WRAPPED_OPINION_TOKEN_ADDRESS   WrappedOpinionToken contract on Polygon
+///   BRIDGE_RECEIVER_ADDRESS         BridgeReceiver contract on Polygon
+///   OWNER_ADDRESS                   BSC recipient of the unlocked Opinion tokens
+///
+/// ─── Notes ───────────────────────────────────────────────────────────────────
+///
+///   - No token approval needed — BridgeReceiver.bridgeBack() burns directly
+///     from msg.sender via WrappedOpinionToken.burn(), which is bridge-only.
+///   - Empty options are passed — enforced options on BridgeReceiver provide
+///     the gas floor (400_000) for OpinionEscrow._lzReceive on BSC.
+///   - Fee is quoted on-chain and padded with a 10% buffer to avoid underpayment.
+///     Any excess is refunded to msg.sender by the LZ endpoint.
+///   - TOKEN ID and AMOUNT are hardcoded below — update before running.
+///
+/// ─── Run ─────────────────────────────────────────────────────────────────────
+///
+///   forge script script/integration_tests/BridgeBack.s.sol \
+///     --rpc-url $POLYGON_RPC_URL --broadcast
+///
+/// ─── Monitor ─────────────────────────────────────────────────────────────────
+///
+///   https://layerzeroscan.com  (mainnet)
+///   https://testnet.layerzeroscan.com  (testnet)
 
 struct MessagingFee {
     uint256 nativeFee;
@@ -10,7 +40,6 @@ struct MessagingFee {
 
 interface IWrappedToken {
     function balanceOf(address account, uint256 id) external view returns (uint256);
-    function setApprovalForAll(address operator, bool approved) external;
 }
 
 interface IBridgeReceiver {
@@ -30,7 +59,14 @@ interface IBridgeReceiver {
 }
 
 contract BridgeBack is Script {
-    using OptionsBuilder for bytes;
+
+    // ─── Config — update before running ──────────────────────────────────────
+
+    /// @dev Opinion ERC-1155 token ID to bridge back.
+    uint256 constant TOKEN_ID = 68227038457866748595233145251243944054564947305383894629176574093714476769147;
+
+    /// @dev Number of wrapped tokens to burn and bridge back.
+    uint256 constant AMOUNT = 50;
 
     function run() external {
         uint256 deployerKey    = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -38,31 +74,36 @@ contract BridgeBack is Script {
         address bridgeReceiver = vm.envAddress("BRIDGE_RECEIVER_ADDRESS");
         address self           = vm.envAddress("OWNER_ADDRESS");
 
-        uint256 tokenId = 68227038457866748595233145251243944054564947305383894629176574093714476769147;
-        uint256 amount  = 50; // bridge back half
-
-        // bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200_000, 0);
+        // Empty options — enforced options on BridgeReceiver provide the gas floor
         bytes memory options = new bytes(0);
 
-        uint256 bal = IWrappedToken(wrappedToken).balanceOf(self, tokenId);
-        console.log("Wrapped token balance:", bal);
-        require(bal >= amount, "Insufficient wrapped balance");
+        // ─── Pre-flight ──────────────────────────────────────────────────────
+
+        uint256 bal = IWrappedToken(wrappedToken).balanceOf(self, TOKEN_ID);
+        console.log("=== BridgeBack ===");
+        console.log("Token ID        :", TOKEN_ID);
+        console.log("Amount          :", AMOUNT);
+        console.log("Wrapped balance :", bal);
+        require(bal >= AMOUNT, "Insufficient wrapped token balance");
 
         MessagingFee memory fee = IBridgeReceiver(bridgeReceiver).quoteBridgeBackFee(
-            tokenId, amount, self, options
+            TOKEN_ID, AMOUNT, self, options
         );
         uint256 feeWithBuffer = fee.nativeFee * 110 / 100;
-        console.log("LZ fee (wei):", fee.nativeFee);
-        console.log("Fee with buffer:", feeWithBuffer);
+        console.log("LZ fee (wei)    :", fee.nativeFee);
+        console.log("Fee + 10% buffer:", feeWithBuffer);
+
+        // ─── Execute ─────────────────────────────────────────────────────────
 
         vm.startBroadcast(deployerKey);
-        // BridgeReceiver burns directly from msg.sender — no approval needed
+        // No approval needed — burn() is called by BridgeReceiver on msg.sender directly
         IBridgeReceiver(bridgeReceiver).bridgeBack{value: feeWithBuffer}(
-            tokenId, amount, self, options
+            TOKEN_ID, AMOUNT, self, options
         );
         vm.stopBroadcast();
 
-        console.log("Bridge back tx sent!");
-        console.log("Monitor: https://testnet.layerzeroscan.com");
+        console.log("Bridge back tx sent.");
+        console.log("BSC recipient   :", self);
+        console.log("Monitor         : https://layerzeroscan.com");
     }
 }

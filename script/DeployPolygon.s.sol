@@ -2,70 +2,87 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 import {WrappedOpinionToken} from "../src/WrappedOpinionToken.sol";
-import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-import {EnforcedOptionParam} from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppOptionsType3.sol";
+import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 
-/// @title DeployPolygon
-/// @notice Deploys BridgeReceiver, WrappedOpinionToken on Polygon.
-/// @dev Run with:
-///      forge script script/DeployPolygon.s.sol:DeployPolygon --rpc-url $POLYGON_RPC_URL --broadcast --verify
+/// @notice Deploys WrappedOpinionToken and BridgeReceiver on Polygon.
+///         Must be run after DeployBSC.s.sol — OpinionEscrow address is needed
+///         for the setPeer step.
 ///
-/// Required environment variables:
-///   DEPLOYER_PRIVATE_KEY   - Private key of the deployer
-///   POLYGON_LZ_ENDPOINT    - LayerZero V2 endpoint address on Polygon (0x1a44076050125825900e736c501f859c50fE728c)
-///   OWNER_ADDRESS          - Team multisig that will own the contracts
-///   BSC_EID                - LayerZero endpoint ID for BSC (30102)
-///   OPINION_ESCROW_ADDRESS - Address of the deployed OpinionEscrow on BSC (for peer setup)
+/// ─── Required env vars ───────────────────────────────────────────────────────
+///
+///   DEPLOYER_PRIVATE_KEY  Private key of the deployer wallet (pays gas)
+///   OWNER_ADDRESS         Team multisig — will own both contracts post-deploy
+///   POLYGON_LZ_ENDPOINT   LayerZero endpoint on Polygon (mainnet: 0x1a44076050125825900e736c501f859c50fE728c)
+///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC (for WrappedOpinionToken metadata)
+///   BSC_EID               LayerZero endpoint ID for BSC (mainnet: 30102)
+///   DST_GAS_LIMIT         Gas limit for _lzReceive on BSC (recommended: 150000)
+///
+/// ─── Post-deploy steps (run separately after both chains deployed) ────────────
+///
+///   1. bridgeReceiver.setPeer(bscEid, bytes32(uint256(uint160(opinionEscrowAddress))))
+///   2. opinionEscrow.setPeer(polygonEid, bytes32(uint256(uint160(bridgeReceiverAddress))))
+///   3. unpause both contracts
+///
+/// ─── Run ─────────────────────────────────────────────────────────────────────
+///
+///   forge script script/DeployPolygon.s.sol \
+///     --rpc-url $POLYGON_RPC_URL \
+///     --broadcast \
+///     --verify
+///
 contract DeployPolygon is Script {
 
-    using OptionsBuilder for bytes;
-
     function run() external {
-        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address lzEndpoint = vm.envAddress("POLYGON_LZ_ENDPOINT");
-        address owner = vm.envAddress("OWNER_ADDRESS");
+        uint256 deployerKey  = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address lzEndpoint   = vm.envAddress("POLYGON_LZ_ENDPOINT");
+        address owner        = vm.envAddress("OWNER_ADDRESS");
         address opinionContract = vm.envAddress("OPINION_CONTRACT");
-        uint32 bscEid = uint32(vm.envUint("BSC_EID"));
+        uint32  bscEid       = uint32(vm.envUint("BSC_EID"));
+        uint128 dstGasLimit  = uint128(vm.envUint("DST_GAS_LIMIT"));
 
         vm.startBroadcast(deployerKey);
 
-        // 1. Deploy WrappedOpinionToken
-        WrappedOpinionToken wrappedToken = new WrappedOpinionToken(owner, opinionContract);
+        // 1. Deploy WrappedOpinionToken — no bridge set yet, mint/burn will
+        //    revert until setBridge() is called below.
+        WrappedOpinionToken wrappedToken = new WrappedOpinionToken(
+            owner,
+            opinionContract
+        );
 
-        // 2. Deploy AddressRegistry
-        // Depreciated
+        // 2. Deploy BridgeReceiver — starts paused (safe before peer and bridge are set).
+        BridgeReceiver bridgeReceiver = new BridgeReceiver(
+            lzEndpoint,
+            owner,
+            address(wrappedToken),
+            bscEid
+        );
 
-        // 3. Deploy BridgeReceiver
-        BridgeReceiver receiver = new BridgeReceiver(lzEndpoint, owner, address(wrappedToken), bscEid);
+        // 3. Wire WrappedOpinionToken to BridgeReceiver — one-time, irreversible.
+        //    After this, only BridgeReceiver can mint and burn wrapped tokens.
+        wrappedToken.setBridge(address(bridgeReceiver));
 
-        // 4. Authorize BridgeReceiver as the bridge on WrappedOpinionToken
-        wrappedToken.setBridge(address(receiver));
+        // 4. Set enforced gas floor for _lzReceive on BSC.
+        //    Uses setDstGasLimit() which updates both dstGasLimit storage
+        //    and OAppOptionsType3 enforced options in one call.
+        bridgeReceiver.setDstGasLimit(dstGasLimit);
 
-        // Set enforced options — ensures every lock() call provides enough gas on Polygon
-        EnforcedOptionParam[] memory opts = new EnforcedOptionParam[](1);
-        opts[0] = EnforcedOptionParam({
-            eid: bscEid,
-            msgType: receiver.SEND(),
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(receiver.dstGasLimit(), 0)
-        });
-        receiver.setEnforcedOptions(opts);
+        vm.stopBroadcast();
 
         console.log("=== Polygon Deployment ===");
         console.log("WrappedOpinionToken:", address(wrappedToken));
-        console.log("BridgeReceiver:", address(receiver));
-        console.log("Owner:", owner);
-        console.log("opinionContract:", opinionContract);
-        console.log("LZ Endpoint:", lzEndpoint);
-        console.log("BSC EID:", bscEid);
-        console.log("EnforcedOptions: set (500k gas for lzReceive on BSC)");
+        console.log("BridgeReceiver     :", address(bridgeReceiver));
+        console.log("Opinion contract   :", opinionContract);
+        console.log("Owner              :", owner);
+        console.log("LZ Endpoint        :", lzEndpoint);
+        console.log("BSC EID            :", bscEid);
+        console.log("Dst gas limit      :", dstGasLimit);
+        console.log("Bridge set         : true");
+        console.log("Paused             : true");
         console.log("");
-        console.log("");
-        console.log("NEXT STEPS:");
-        console.log("1. Set peer on BridgeReceiver: receiver.setPeer(bscEid, bytes32(escrowAddress))");
-        console.log("2. Set peer on OpinionEscrow (BSC): escrow.setPeer(polygonEid, bytes32(receiverAddress))");
-
-        vm.stopBroadcast();
+        console.log("=== Next steps ===");
+        console.log("1. setPeer on BridgeReceiver -> run SetPeer.s.sol");
+        console.log("2. setPeer on OpinionEscrow  -> run SetPeer.s.sol");
+        console.log("3. unpause both contracts    -> run Unpause.s.sol");
     }
 }

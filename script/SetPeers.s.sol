@@ -5,53 +5,88 @@ import {Script, console} from "forge-std/Script.sol";
 import {OpinionEscrow} from "../src/OpinionEscrow.sol";
 import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 
-/// @title SetPeers
 /// @notice Configures LayerZero peers after both chains are deployed.
-///         Run this twice: once targeting BSC, once targeting Polygon.
-/// @dev
-///   Set BSC peer:
-///     CHAIN=bsc forge script script/SetPeers.s.sol:SetPeerBSC --rpc-url $BSC_RPC_URL --broadcast
+///         Must be run on both chains before unpausing — without peers set,
+///         all LZ messages will be rejected.
 ///
-///   Set Polygon peer:
-///     CHAIN=polygon forge script script/SetPeers.s.sol:SetPeerPolygon --rpc-url $POLYGON_RPC_URL --broadcast
+/// ─── Required env vars ───────────────────────────────────────────────────────
 ///
-/// Required env vars for both:
-///   DEPLOYER_PRIVATE_KEY, OPINION_ESCROW_ADDRESS, BRIDGE_RECEIVER_ADDRESS, POLYGON_EID, BSC_EID
+///   DEPLOYER_PRIVATE_KEY      Must be owner of the contract being configured
+///   OPINION_ESCROW_ADDRESS    OpinionEscrow address on BSC
+///   BRIDGE_RECEIVER_ADDRESS   BridgeReceiver address on Polygon
+///   POLYGON_EID               LayerZero endpoint ID for Polygon (mainnet: 30109)
+///   BSC_EID                   LayerZero endpoint ID for BSC    (mainnet: 30102)
+///
+/// ─── Run ─────────────────────────────────────────────────────────────────────
+///
+///   BSC (tell OpinionEscrow to trust BridgeReceiver):
+///     forge script script/SetPeers.s.sol:SetPeerBSC \
+///       --rpc-url $BSC_RPC_URL --broadcast
+///
+///   Polygon (tell BridgeReceiver to trust OpinionEscrow):
+///     forge script script/SetPeers.s.sol:SetPeerPolygon \
+///       --rpc-url $POLYGON_RPC_URL --broadcast
+///
+/// ─── Pre-flight checklist ────────────────────────────────────────────────────
+///
+///   [ ] OpinionEscrow deployed on BSC        (DeployBSC.s.sol)
+///   [ ] BridgeReceiver deployed on Polygon   (DeployPolygon.s.sol)
+///   [ ] Both addresses available as env vars
+///
+/// ─── Post-run checklist ──────────────────────────────────────────────────────
+///
+///   [ ] Verify peer on BSC:     cast call $OPINION_ESCROW "peers(uint32)" $POLYGON_EID --rpc-url $BSC_RPC_URL
+///   [ ] Verify peer on Polygon: cast call $BRIDGE_RECEIVER "peers(uint32)" $BSC_EID --rpc-url $POLYGON_RPC_URL
+///   [ ] Run Unpause.s.sol on both chains once peers are confirmed
+
+// ─── BSC ──────────────────────────────────────────────────────────────────────
 
 contract SetPeerBSC is Script {
     function run() external {
-        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address escrowAddr = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        uint256 deployerKey  = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address escrowAddr   = vm.envAddress("OPINION_ESCROW_ADDRESS");
         address receiverAddr = vm.envAddress("BRIDGE_RECEIVER_ADDRESS");
-        uint32 polygonEid = uint32(vm.envUint("POLYGON_EID"));
+        uint32  polygonEid   = uint32(vm.envUint("POLYGON_EID"));
 
-        OpinionEscrow escrow = OpinionEscrow(payable(escrowAddr));
+        bytes32 peerBytes32 = bytes32(uint256(uint160(receiverAddr)));
+
+        console.log("=== SetPeer BSC ===");
+        console.log("OpinionEscrow    :", escrowAddr);
+        console.log("Peer (Receiver)  :", receiverAddr);
+        console.log("Polygon EID      :", polygonEid);
+        console.log("Peer bytes32     :");
+        console.logBytes32(peerBytes32);
 
         vm.startBroadcast(deployerKey);
-        escrow.setPeer(polygonEid, bytes32(uint256(uint160(receiverAddr))));
+        OpinionEscrow(payable(escrowAddr)).setPeer(polygonEid, peerBytes32);
         vm.stopBroadcast();
 
-        console.log("OpinionEscrow peer set:");
-        console.log("  Polygon EID:", polygonEid);
-        console.log("  BridgeReceiver:", receiverAddr);
+        console.log("Done. OpinionEscrow will now accept messages from BridgeReceiver.");
     }
 }
 
+// ─── Polygon ──────────────────────────────────────────────────────────────────
+
 contract SetPeerPolygon is Script {
     function run() external {
-        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address escrowAddr = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        uint256 deployerKey  = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address escrowAddr   = vm.envAddress("OPINION_ESCROW_ADDRESS");
         address receiverAddr = vm.envAddress("BRIDGE_RECEIVER_ADDRESS");
-        uint32 bscEid = uint32(vm.envUint("BSC_EID"));
+        uint32  bscEid       = uint32(vm.envUint("BSC_EID"));
 
-        BridgeReceiver receiver = BridgeReceiver(payable(receiverAddr));
+        bytes32 peerBytes32 = bytes32(uint256(uint160(escrowAddr)));
+
+        console.log("=== SetPeer Polygon ===");
+        console.log("BridgeReceiver   :", receiverAddr);
+        console.log("Peer (Escrow)    :", escrowAddr);
+        console.log("BSC EID          :", bscEid);
+        console.log("Peer bytes32     :");
+        console.logBytes32(peerBytes32);
 
         vm.startBroadcast(deployerKey);
-        receiver.setPeer(bscEid, bytes32(uint256(uint160(escrowAddr))));
+        BridgeReceiver(payable(receiverAddr)).setPeer(bscEid, peerBytes32);
         vm.stopBroadcast();
 
-        console.log("BridgeReceiver peer set:");
-        console.log("  BSC EID:", bscEid);
-        console.log("  OpinionEscrow:", escrowAddr);
+        console.log("Done. BridgeReceiver will now accept messages from OpinionEscrow.");
     }
 }

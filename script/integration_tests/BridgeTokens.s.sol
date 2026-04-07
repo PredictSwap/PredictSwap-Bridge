@@ -1,7 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+
 import {Script, console} from "forge-std/Script.sol";
-import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+
+/// @notice Locks Opinion ERC-1155 shares in OpinionEscrow on BSC and sends a
+///         LayerZero message to BridgeReceiver on Polygon, which mints WrappedOpinionToken.
+///
+/// ─── Required env vars ───────────────────────────────────────────────────────
+///
+///   DEPLOYER_PRIVATE_KEY      Wallet that holds the Opinion ERC-1155 tokens
+///   OPINION_CONTRACT          Opinion ERC-1155 contract address on BSC
+///   OPINION_ESCROW_ADDRESS    OpinionEscrow contract address on BSC
+///   OWNER_ADDRESS             Polygon address to receive the minted wrapped tokens
+///
+/// ─── Notes ───────────────────────────────────────────────────────────────────
+///
+///   - Caller must hold sufficient Opinion ERC-1155 balance for TOKEN_ID.
+///   - setApprovalForAll is granted before lock() and revoked immediately after
+///     within the same broadcast, minimizing the approval window.
+///   - Empty options are passed — enforced options on OpinionEscrow provide
+///     the gas floor (400_000) for BridgeReceiver._lzReceive on Polygon.
+///   - Fee is quoted on-chain and padded with a 10% buffer to avoid underpayment.
+///     Any excess is refunded to msg.sender by the LZ endpoint.
+///   - TOKEN_ID and AMOUNT are hardcoded below — update before running.
+///
+/// ─── Run ─────────────────────────────────────────────────────────────────────
+///
+///   forge script script/integration_tests/BridgeTokens.s.sol \
+///     --rpc-url $BSC_RPC_URL --broadcast
+///
+/// ─── Monitor ─────────────────────────────────────────────────────────────────
+///
+///   https://layerzeroscan.com  (mainnet)
+///   https://testnet.layerzeroscan.com  (testnet)
 
 struct MessagingFee {
     uint256 nativeFee;
@@ -30,36 +61,50 @@ interface IOpinionEscrow {
 }
 
 contract BridgeTokens is Script {
-    using OptionsBuilder for bytes;
+
+    // ─── Config — update before running ──────────────────────────────────────
+
+    /// @dev Opinion ERC-1155 token ID to lock and bridge to Polygon.
+    uint256 constant TOKEN_ID = 68227038457866748595233145251243944054564947305383894629176574093714476769147;
+
+    /// @dev Number of tokens to lock. Opinion shares use 1e18 precision.
+    uint256 constant AMOUNT = 100 * 1e18;
 
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address mock   = vm.envAddress("OPINION_CONTRACT");
-        address escrow = vm.envAddress("OPINION_ESCROW_ADDRESS");
-        address self   = vm.envAddress("OWNER_ADDRESS");
+        address opinion     = vm.envAddress("OPINION_CONTRACT");
+        address escrow      = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        address self        = vm.envAddress("OWNER_ADDRESS");
 
-        uint256 tokenId = 68227038457866748595233145251243944054564947305383894629176574093714476769147;
-        uint256 amount  = 100 * 1e18;
+        // Empty options — enforced options on OpinionEscrow provide the gas floor
+        bytes memory options = new bytes(0);
 
-        // Correct LZ v2 options via OptionsBuilder
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200_000, 0);
-        console.logBytes(options); // log so you can verify the encoding
+        // ─── Pre-flight ──────────────────────────────────────────────────────
 
-        uint256 bal = IERC1155(mock).balanceOf(self, tokenId);
-        console.log("Balance before bridge:", bal);
-        require(bal >= amount, "Insufficient balance");
+        uint256 bal = IERC1155(opinion).balanceOf(self, TOKEN_ID);
+        console.log("=== BridgeTokens ===");
+        console.log("Token ID         :", TOKEN_ID);
+        console.log("Amount           :", AMOUNT);
+        console.log("Balance on BSC   :", bal);
+        require(bal >= AMOUNT, "Insufficient Opinion token balance");
 
-        MessagingFee memory fee = IOpinionEscrow(escrow).quoteLockFee(tokenId, amount, self, options);
+        MessagingFee memory fee = IOpinionEscrow(escrow).quoteLockFee(
+            TOKEN_ID, AMOUNT, self, options
+        );
         uint256 feeWithBuffer = fee.nativeFee * 110 / 100;
-        console.log("LZ nativeFee (wei):", fee.nativeFee);
-        console.log("Fee with 10% buffer:", feeWithBuffer);
+        console.log("LZ fee (wei)     :", fee.nativeFee);
+        console.log("Fee + 10% buffer :", feeWithBuffer);
+
+        // ─── Execute ─────────────────────────────────────────────────────────
 
         vm.startBroadcast(deployerKey);
-        IERC1155(mock).setApprovalForAll(escrow, true);
-        IOpinionEscrow(escrow).lock{value: feeWithBuffer}(tokenId, amount, self, options);
+        IERC1155(opinion).setApprovalForAll(escrow, true);
+        IOpinionEscrow(escrow).lock{value: feeWithBuffer}(TOKEN_ID, AMOUNT, self, options);
+        IERC1155(opinion).setApprovalForAll(escrow, false);
         vm.stopBroadcast();
 
-        console.log("Bridge tx sent. Monitor:");
-        console.log("https://testnet.layerzeroscan.com");
+        console.log("Bridge tx sent.");
+        console.log("Polygon recipient:", self);
+        console.log("Monitor          : https://layerzeroscan.com");
     }
 }

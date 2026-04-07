@@ -3,44 +3,72 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {OpinionEscrow} from "../src/OpinionEscrow.sol";
-import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-import {EnforcedOptionParam} from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppOptionsType3.sol";
 
+/// @notice Deploys OpinionEscrow on BSC.
+///
+/// ─── Required env vars ───────────────────────────────────────────────────────
+///
+///   DEPLOYER_PRIVATE_KEY  Private key of the deployer wallet (pays gas)
+///   OWNER_ADDRESS         Team multisig — will own the contract post-deploy
+///   BSC_LZ_ENDPOINT       LayerZero endpoint on BSC (mainnet: 0x1a44076050125825900e736c501f859c50fE728c)
+///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC
+///   POLYGON_EID           LayerZero endpoint ID for Polygon (mainnet: 30109)
+///   DST_GAS_LIMIT         Gas limit for _lzReceive on Polygon (recommended: 200000)
+///
+/// ─── Post-deploy steps (run separately after Polygon deploy) ─────────────────
+///
+///   1. escrow.setPeer(polygonEid, bytes32(uint256(uint160(bridgeReceiverAddress))))
+///   2. escrow.unpause()
+///
+/// ─── Run ─────────────────────────────────────────────────────────────────────
+///
+///   forge script script/DeployBSC.s.sol \
+///     --rpc-url $BSC_RPC_URL \
+///     --broadcast \
+///     --verify
+///
 contract DeployBSC is Script {
-    using OptionsBuilder for bytes;
 
     function run() external {
-        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address lzEndpoint = vm.envAddress("BSC_LZ_ENDPOINT");
-        address owner = vm.envAddress("OWNER_ADDRESS");
+        uint256 deployerKey   = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address lzEndpoint    = vm.envAddress("BSC_LZ_ENDPOINT");
+        address owner         = vm.envAddress("OWNER_ADDRESS");
         address opinionContract = vm.envAddress("OPINION_CONTRACT");
-        uint32 polygonEid = uint32(vm.envUint("POLYGON_EID"));
+        uint32  polygonEid    = uint32(vm.envUint("POLYGON_EID"));
+        uint128 dstGasLimit   = 200000;
 
         vm.startBroadcast(deployerKey);
 
-        OpinionEscrow escrow = new OpinionEscrow(lzEndpoint, owner, opinionContract, polygonEid);
+        // 1. Deploy — contract starts paused (safe before peer is set)
+        OpinionEscrow escrow = new OpinionEscrow(
+            lzEndpoint,
+            owner,
+            opinionContract,
+            polygonEid
+        );
 
-        // Set enforced options — ensures every lock() call provides enough gas on Polygon
-        EnforcedOptionParam[] memory opts = new EnforcedOptionParam[](1);
-        opts[0] = EnforcedOptionParam({
-            eid: polygonEid,
-            msgType: escrow.SEND(),
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(escrow.dstGasLimit(), 0)
-        });
-        escrow.setEnforcedOptions(opts);
-
-        console.log("=== BSC Deployment ===");
-        console.log("OpinionEscrow:", address(escrow));
-        console.log("opinionContract:", address(opinionContract));
-        console.log("Owner:", owner);
-        console.log("LZ Endpoint:", lzEndpoint);
-        console.log("Polygon EID:", polygonEid);
-        console.log("EnforcedOptions: set (500k gas for lzReceive on Polygon)");
-        console.log("");
-        console.log("NEXT STEPS:");
-        console.log("1. Deploy Polygon contracts (DeployPolygon.s.sol)");
-        console.log("2. Set peers: escrow.setPeer(polygonEid, bytes32(bridgeReceiverAddress))");
+        // 2. Set enforced gas floor for _lzReceive on Polygon.
+        //    Uses setDstGasLimit() which updates both dstGasLimit storage
+        //    and OAppOptionsType3 enforced options in one call.
+        //    Must be done before unpause — callers with empty _options
+        //    would otherwise have no gas floor set.
+        escrow.setDstGasLimit(dstGasLimit);
 
         vm.stopBroadcast();
+
+        console.log("=== BSC Deployment ===");
+        console.log("OpinionEscrow    :", address(escrow));
+        console.log("Opinion contract :", opinionContract);
+        console.log("Owner            :", owner);
+        console.log("LZ Endpoint      :", lzEndpoint);
+        console.log("Polygon EID      :", polygonEid);
+        console.log("Dst gas limit    :", dstGasLimit);
+        console.log("Paused           : true");
+        console.log("");
+        console.log("=== Next steps ===");
+        console.log("1. Deploy Polygon contracts  -> run DeployPolygon.s.sol");
+        console.log("2. setPeer on this contract  -> run SetPeer.s.sol");
+        console.log("3. setPeer on BridgeReceiver -> run SetPeer.s.sol");
+        console.log("4. unpause both contracts    -> run Unpause.s.sol");
     }
 }
