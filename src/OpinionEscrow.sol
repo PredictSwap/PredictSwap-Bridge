@@ -10,6 +10,7 @@ import {OApp, Origin, MessagingFee, MessagingReceipt} from "@layerzerolabs/oapp-
 import {OAppOptionsType3, EnforcedOptionParam} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title OpinionEscrow
@@ -31,7 +32,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 ///   Lock   (BSC → Polygon): user calls lock() → LZ message → BridgeReceiver mints wrapped tokens
 ///   Unlock (Polygon → BSC): BridgeReceiver sends LZ message → _lzReceive() releases locked tokens
 ///
-contract OpinionEscrow is OApp, OAppOptionsType3, IERC1155Receiver, Pausable {
+contract OpinionEscrow is OApp, OAppOptionsType3, IERC1155Receiver, ReentrancyGuard, Pausable {
 
     using SafeERC20 for IERC20;
     using OptionsBuilder for bytes;
@@ -170,7 +171,7 @@ contract OpinionEscrow is OApp, OAppOptionsType3, IERC1155Receiver, Pausable {
         uint256 _amount,
         address _polygonRecipient,
         bytes calldata _options
-    ) external payable whenNotPaused returns (MessagingReceipt memory receipt) {
+    ) external payable whenNotPaused nonReentrant returns (MessagingReceipt memory receipt) {
         if (_amount == 0) revert ZeroAmount();
         if (_polygonRecipient == address(0)) revert ZeroAddress();
 
@@ -215,7 +216,7 @@ contract OpinionEscrow is OApp, OAppOptionsType3, IERC1155Receiver, Pausable {
         bytes calldata _message,
         address, /* _executor */
         bytes calldata /* _extraData */
-    ) internal override {
+    ) internal override nonReentrant {
         (address bscRecipient, uint256 tokenId, uint256 amount) =
             abi.decode(_message, (address, uint256, uint256));
 

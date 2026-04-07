@@ -9,6 +9,7 @@ import {OAppOptionsType3, EnforcedOptionParam} from "@layerzerolabs/oapp-evm/con
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {WrappedOpinionToken} from "./WrappedOpinionToken.sol";
 
 /// @title BridgeReceiver
@@ -37,7 +38,7 @@ import {WrappedOpinionToken} from "./WrappedOpinionToken.sol";
 ///   totalBridged[tokenId] == WrappedOpinionToken.totalSupply(tokenId) at all times.
 ///   Any deviation indicates a bug or a failed LZ message.
 ///
-contract BridgeReceiver is OApp, OAppOptionsType3, Pausable {
+contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     using SafeERC20 for IERC20;
     using OptionsBuilder for bytes;
@@ -179,7 +180,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, Pausable {
         bytes calldata _message,
         address, /* _executor */
         bytes calldata /* _extraData */
-    ) internal override {
+    ) internal override nonReentrant {
         (address polygonRecipient, uint256 tokenId, uint256 amount) =
             abi.decode(_message, (address, uint256, uint256));
 
@@ -209,7 +210,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, Pausable {
         uint256 _amount,
         address _bscRecipient,
         bytes calldata _options
-    ) external payable whenNotPaused returns (MessagingReceipt memory receipt) {
+    ) external payable whenNotPaused nonReentrant returns (MessagingReceipt memory receipt) {
         if (_amount == 0) revert ZeroAmount();
         if (_bscRecipient == address(0)) revert ZeroAddress();
         if (totalBridged[_tokenId] < _amount) revert InsufficientBridgedBalance(_tokenId, totalBridged[_tokenId], _amount);
