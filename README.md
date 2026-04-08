@@ -1,32 +1,37 @@
-# PredictSwap Bridge Contracts
+# PredictSwap Bridge
 
-Cross-chain bridge for Opinion ERC-1155 prediction market tokens between BSC and Polygon.
+Cross-chain bridge for locking ERC-1155 prediction market shares on BSC and minting wrapped equivalents on Polygon for use in SwapPool.
 
 ## Architecture
 
 ```
 BSC (BNB Smart Chain)                    Polygon
-┌───────────────────┐                   ┌────────────────────┐
-│  OpinionEscrow    │◄── LayerZero ───►│  BridgeReceiver     │
-│  (lock/unlock)    │    v2 OApp       │  (mint/burn)        │
-└───────────────────┘                   ├────────────────────┤
+┌───────────────────┐                   ┌─────────────────────┐
+│      Escrow       │◄─── LayerZero ───►│  BridgeReceiver     │
+│  (lock/unlock)    │      V2 OApp      │  (mint/burn)        │
+└───────────────────┘                   ├─────────────────────┤
                                         │ WrappedOpinionToken │
                                         │  (ERC-1155)         │
-                                        ├────────────────────┤
-                                        │  AddressRegistry    │
-                                        │  (EOA → Safe map)   │
-                                        └────────────────────┘
+                                        └─────────────────────┘
 ```
 
 **Flow: BSC → Polygon (lock & mint)**
-1. User transfers Opinion ERC-1155 shares to `OpinionEscrow` on BSC
+1. User transfers ERC-1155 shares to `OpinionEscrow` on BSC
 2. Escrow sends LayerZero message to `BridgeReceiver` on Polygon
 3. BridgeReceiver mints `WrappedOpinionToken` to user's Polygon address
 
 **Flow: Polygon → BSC (burn & unlock)**
 1. User calls `bridgeBack()` on `BridgeReceiver`, burning wrapped tokens
 2. BridgeReceiver sends LayerZero message to `OpinionEscrow` on BSC
-3. Escrow releases original Opinion shares to user's BSC Safe address
+3. Escrow releases original shares to user's BSC address
+
+## Contracts
+
+| Contract | Chain | Description |
+|---|---|---|
+| `OpinionEscrow` | BSC | LayerZero OApp. Locks/unlocks ERC-1155 shares. |
+| `BridgeReceiver` | Polygon | LayerZero OApp. Mints/burns wrapped tokens. |
+| `WrappedOpinionToken` | Polygon | ERC-1155 wrapped representation, 1:1 backed by locked shares on BSC. |
 
 ## Setup
 
@@ -46,34 +51,21 @@ git submodule add https://github.com/GNSPS/solidity-bytes-utils.git lib/solidity
 ## Build & Test
 
 ```bash
-# Compile
 forge build
-
-# Run all tests
 forge test -vvv
-
-# Run integration tests with full trace
 forge test --match-contract BridgeIntegration -vvvv
-
-# Gas report
 forge test --gas-report
 ```
 
-## Contracts
-
-| Contract | Chain | Description |
-|----------|-------|-------------|
-| `OpinionEscrow` | BSC | LayerZero OApp. Locks/unlocks Opinion ERC-1155 shares. |
-| `BridgeReceiver` | Polygon | LayerZero OApp. Mints/burns wrapped tokens. |
-| `WrappedOpinionToken` | Polygon | ERC-1155 wrapped representation of Opinion shares. |
-
 ## Deployment
 
-### 1. Deploy BSC (Optional for Testing)
+All deploy scripts require environment variables:
 
+```bash
 source .env
+```
 
-### 2. Deploy and mint Dummy Opinion ERC-1155 (Optional for Testing)
+### 1. Deploy mock ERC-1155 (testnet only)
 
 ```bash
 forge script script/integration_tests/DeployMockOpinion.s.sol:DeployMockOpinion \
@@ -83,18 +75,19 @@ forge script script/integration_tests/DeployMockOpinion.s.sol:DeployMockOpinion 
   --verifier etherscan \
   --verifier-url "https://api.etherscan.io/v2/api?chainid=$BSC_CHAIN_ID" \
   --etherscan-api-key $ETHERSCAN_API_KEY
+```
 
-add OPINION_CONTRACT into .env
+Add `OPINION_CONTRACT` to `.env`.
 
+```bash
 forge script script/integration_tests/MintMock.s.sol \
   --rpc-url $BSC_RPC_URL \
   --broadcast
 ```
 
+Faucets: [BSC testnet](https://www.bnbchain.org/en/testnet-faucet) · [Polygon Amoy](https://faucet.stakepool.dev.br/amoy)
 
-### 3. Deploy BSC Contracts
-
-faucet - https://www.bnbchain.org/en/testnet-faucet
+### 2. Deploy BSC contracts
 
 ```bash
 forge script script/DeployBSC.s.sol:DeployBSC \
@@ -107,11 +100,9 @@ forge script script/DeployBSC.s.sol:DeployBSC \
   -vvvv
 ```
 
-add OPINION_ESCROW_ADDRESS into .env
+Add `OPINION_ESCROW_ADDRESS` to `.env`.
 
-### 4. Deploy Polygon Contracts
-
-faucet - https://faucet.stakepool.dev.br/amoy
+### 3. Deploy Polygon contracts
 
 ```bash
 forge script script/DeployPolygon.s.sol:DeployPolygon \
@@ -124,66 +115,59 @@ forge script script/DeployPolygon.s.sol:DeployPolygon \
   -vvvv
 ```
 
-add BRIDGE_RECEIVER_ADDRESS and WRAPPED_OPINION_TOKEN_ADDRESS into .env
+Add `BRIDGE_RECEIVER_ADDRESS` and `WRAPPED_OPINION_TOKEN_ADDRESS` to `.env`.
 
-### 5. Config DVN
+### 4. Configure DVN
+
 ```bash
-# Set peer on BSC
 forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesBSC()" \
---rpc-url $BSC_RPC_URL \
---broadcast
+  --rpc-url $BSC_RPC_URL \
+  --broadcast
 
-# Set peer on Polygon
 forge script script/integration_tests/SetConfig.s.sol:SetConfig --sig "SetLibrariesPolygon()" \
---rpc-url $POLYGON_RPC_URL \
---broadcast
+  --rpc-url $POLYGON_RPC_URL \
+  --broadcast
 ```
 
-### 6. Set Peers
+### 5. Set peers
 
 ```bash
-# Set peer on BSC
 forge script script/SetPeers.s.sol:SetPeerBSC \
   --rpc-url $BSC_RPC_URL \
   --broadcast
 
-# Set peer on Polygon
 forge script script/SetPeers.s.sol:SetPeerPolygon \
   --rpc-url $POLYGON_RPC_URL \
   --broadcast
 ```
 
-### 7. Set DstGas
+### 6. Set destination gas limits
 
 ```bash
-# Set peer on BSC
 forge script script/SetDstGasLimit.s.sol:SetDstGasLimitBSC \
   --rpc-url $BSC_RPC_URL \
   --broadcast
 
-# Set peer on Polygon
 forge script script/SetDstGasLimit.s.sol:SetDstGasLimitPolygon \
   --rpc-url $POLYGON_RPC_URL \
   --broadcast
 ```
 
-### 8. Unpause contracts
+### 7. Unpause contracts
 
 ```bash
-# Set peer on BSC
-forge script script/UnpauseContracts.s..sol:UnpauseBSC \
+forge script script/UnpauseContracts.s.sol:UnpauseBSC \
   --rpc-url $BSC_RPC_URL \
   --broadcast
 
-# Set peer on Polygon
 forge script script/UnpauseContracts.s.sol:UnpausePolygon \
   --rpc-url $POLYGON_RPC_URL \
   --broadcast
 ```
 
-### Usage
+## Usage
 
-# Bridge Tokens
+### Bridge tokens (BSC → Polygon)
 
 ```bash
 forge script script/integration_tests/BridgeTokens.s.sol \
@@ -191,7 +175,7 @@ forge script script/integration_tests/BridgeTokens.s.sol \
   --broadcast
 ```
 
-# Bridge Back
+### Bridge back (Polygon → BSC)
 
 ```bash
 forge script script/integration_tests/BridgeBack.s.sol \
@@ -199,20 +183,20 @@ forge script script/integration_tests/BridgeBack.s.sol \
   --broadcast
 ```
 
-# Get Config
+### Inspect LayerZero config
 
 ```bash
 forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getPolygonReceive()" --rpc-url $POLYGON_RPC_URL
-forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getPolygonSend()" --rpc-url $POLYGON_RPC_URL
-forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getBSCReceive()" --rpc-url $BSC_RPC_URL
-forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getBSCSend()" --rpc-url $BSC_RPC_URL
+forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getPolygonSend()"    --rpc-url $POLYGON_RPC_URL
+forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getBSCReceive()"    --rpc-url $BSC_RPC_URL
+forge script script/integration_tests/GetConfig.s.sol:GetConfigScript --sig "getBSCSend()"       --rpc-url $BSC_RPC_URL
 ```
-
 
 ## Key Design Decisions
 
-- **Wrapped tokens, not bridged originals**: We mint our own ERC-1155 on Polygon rather than bridging Opinion's tokens. No platform permissions needed.
-
+- **Wrapped tokens, not bridged originals** — `WrappedOpinionToken` is minted on Polygon rather than bridging the original ERC-1155. No permissions needed from the source platform.
+- **Message-only bridging** — Native tokens never leave their home chain. LayerZero carries messages only; value is locked on BSC and represented 1:1 on Polygon.
+- **`setBridge` must be called before ownership transfer** — `WrappedOpinionToken` requires the bridge address to be set while the deployer still owns it. This is a one-time, irreversible operation (`BridgeAlreadySet` guard).
 
 ## License
 
