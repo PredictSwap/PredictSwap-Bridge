@@ -10,20 +10,20 @@ import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/Option
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {WrappedOpinionToken} from "./WrappedOpinionToken.sol";
+import {WrappedPredictionToken} from "./WrappedPredictionToken.sol";
 
 /// @title BridgeReceiver
 /// @notice Deployed on Polygon. Receives lock confirmations from OpinionEscrow on BSC
-///         and mints WrappedOpinionToken. Handles bridge-back requests by burning wrapped
+///         and mints WrappedPredictionToken. Handles bridge-back requests by burning wrapped
 ///         tokens and sending unlock messages to BSC.
 /// @dev Paired 1:1 with a single OpinionEscrow on BSC. If OpinionEscrow is redeployed,
 ///      a new BridgeReceiver must also be deployed and wired via setPeer.
 ///
 /// ─── Deployment checklist ────────────────────────────────────────────────────
 ///
-///   1. Deploy WrappedOpinionToken
+///   1. Deploy WrappedPredictionToken
 ///   2. Deploy BridgeReceiver (contract starts paused)
-///   3. WrappedOpinionToken.setBridge(bridgeReceiverAddress) — one-time, irreversible
+///   3. WrappedPredictionToken.setBridge(bridgeReceiverAddress) — one-time, irreversible
 ///   4. setPeer(bscEid, bytes32(uint256(uint160(opinionEscrowAddress))))
 ///   5. setDstGasLimit(400_000)  — enforces minimum gas for _lzReceive on BSC
 ///   6. unpause()
@@ -35,7 +35,7 @@ import {WrappedOpinionToken} from "./WrappedOpinionToken.sol";
 ///
 /// ─── Invariant ───────────────────────────────────────────────────────────────
 ///
-///   totalBridged[tokenId] == WrappedOpinionToken.totalSupply(tokenId) at all times.
+///   totalBridged[tokenId] == WrappedPredictionToken.totalSupply(tokenId) at all times.
 ///   Any deviation indicates a bug or a failed LZ message.
 ///
 contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
@@ -45,10 +45,10 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     // ─── Immutable config ─────────────────────────────────────────────────────
 
-    /// @notice The WrappedOpinionToken contract this bridge mints and burns.
-    /// @dev Set at construction and immutable. WrappedOpinionToken.setBridge() must
+    /// @notice The WrappedPredictionToken contract this bridge mints and burns.
+    /// @dev Set at construction and immutable. WrappedPredictionToken.setBridge() must
     ///      be called with this contract's address before any messages can be processed.
-    WrappedOpinionToken public immutable wrappedToken;
+    WrappedPredictionToken public immutable wrappedToken;
 
     /// @notice LayerZero endpoint ID for BSC (where OpinionEscrow lives).
     /// @dev Mainnet: 30102. Used as destination EID for all outbound LZ messages.
@@ -66,7 +66,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     uint16 public constant SEND = 1;
 
     /// @notice Total wrapped tokens minted per tokenId.
-    /// @dev Safety invariant: must equal WrappedOpinionToken.totalSupply(tokenId) at all times.
+    /// @dev Safety invariant: must equal WrappedPredictionToken.totalSupply(tokenId) at all times.
     ///      Incremented on _lzReceive (bridge in), decremented on bridgeBack (bridge back).
     ///      Guards against releasing more than was ever bridged in.
     mapping(uint256 tokenId => uint256 amount) public totalBridged;
@@ -121,7 +121,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     /// @param _endpoint     LayerZero endpoint address on Polygon.
     /// @param _owner        Contract owner — should be team multisig.
-    /// @param _wrappedToken Address of the WrappedOpinionToken contract on Polygon.
+    /// @param _wrappedToken Address of the WrappedPredictionToken contract on Polygon.
     /// @param _bscEid       LayerZero endpoint ID for BSC (mainnet: 30102).
     constructor(
         address _endpoint,
@@ -130,7 +130,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
         uint32 _bscEid
     ) OApp(_endpoint, _owner) Ownable(_owner) {
         if (_wrappedToken == address(0)) revert ZeroAddress();
-        wrappedToken = WrappedOpinionToken(_wrappedToken);
+        wrappedToken = WrappedPredictionToken(_wrappedToken);
         bscEid = _bscEid;
         _pause(); // Paused until setPeer + WrappedToken.setBridge + setDstGasLimit are called
     }
@@ -173,7 +173,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     ///         Intentionally NOT gated by pause — in-flight BSC→Polygon messages must
     ///         always be able to land and mint, regardless of contract pause state.
     ///         totalBridged is incremented here and must stay in sync with
-    ///         WrappedOpinionToken.totalSupply(tokenId).
+    ///         WrappedPredictionToken.totalSupply(tokenId).
     function _lzReceive(
         Origin calldata, /* _origin */
         bytes32, /* _guid */
@@ -193,13 +193,13 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     // ─── Bridge Back (Polygon → BSC) ──────────────────────────────────────────
 
     /// @notice Burn wrapped tokens on Polygon and bridge them back to BSC.
-    /// @dev    Caller must hold sufficient WrappedOpinionToken balance for _tokenId.
+    /// @dev    Caller must hold sufficient WrappedPredictionToken balance for _tokenId.
     ///         The LZ messaging fee must be passed as msg.value. Use quoteBridgeBackFee()
     ///         to estimate the required fee before calling. Any excess msg.value is
     ///         refunded to msg.sender by the LZ endpoint.
     ///         Burns before sending the LZ message — if _lzSend reverts, the entire
     ///         transaction reverts atomically and no tokens are lost.
-    /// @param _tokenId      WrappedOpinionToken token ID to burn and bridge back.
+    /// @param _tokenId      WrappedPredictionToken token ID to burn and bridge back.
     /// @param _amount       Number of tokens to burn. Must be > 0.
     /// @param _bscRecipient Address on BSC to receive the unlocked Opinion tokens. Must be non-zero.
     /// @param _options      Additional LZ executor options (e.g. extra gas). Pass empty
@@ -226,7 +226,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     /// @notice Estimate the LZ messaging fee for a bridgeBack() call.
     /// @dev    Pass the same _options you intend to use in bridgeBack(). Fee is in native token (MATIC).
-    /// @param _tokenId      WrappedOpinionToken token ID.
+    /// @param _tokenId      WrappedPredictionToken token ID.
     /// @param _amount       Number of tokens (used for payload encoding only, not fee calculation).
     /// @param _bscRecipient BSC recipient address.
     /// @param _options      Additional LZ executor options. Pass empty bytes if none.
@@ -244,7 +244,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     // ─── Rescue ───────────────────────────────────────────────────────────────
 
     /// @notice Recover ERC-1155 tokens accidentally sent to this contract.
-    /// @dev    Cannot rescue WrappedOpinionToken for a tokenId that still has outstanding
+    /// @dev    Cannot rescue WrappedPredictionToken for a tokenId that still has outstanding
     ///         bridged balance — those represent user funds awaiting bridge-back.
     ///         Other ERC-1155 tokens sent by mistake can always be rescued.
     /// @param _token   ERC-1155 token contract address.

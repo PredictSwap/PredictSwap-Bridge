@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Test, console} from "forge-std/Test.sol";
 import {OpinionEscrow} from "../src/OpinionEscrow.sol";
 import {BridgeReceiver} from "../src/BridgeReceiver.sol";
-import {WrappedOpinionToken} from "../src/WrappedOpinionToken.sol";
+import {WrappedPredictionToken} from "../src/WrappedPredictionToken.sol";
 import {MockEndpointV2} from "./mocks/MockEndpointV2.sol";
 import {MockERC1155} from "./mocks/MockERC1155.sol";
 
@@ -34,7 +34,7 @@ contract BridgeIntegrationTest is Test {
 
     MockEndpointV2      public polyEndpoint;
     BridgeReceiver      public receiver;
-    WrappedOpinionToken public wrappedToken;
+    WrappedPredictionToken public wrappedToken;
 
     // ─── Actors ───────────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ contract BridgeIntegrationTest is Test {
         polyEndpoint = new MockEndpointV2(POLYGON_EID);
 
         vm.startPrank(deployer);
-        wrappedToken = new WrappedOpinionToken(deployer, address(opinionToken));
+        wrappedToken = new WrappedPredictionToken(deployer, address(opinionToken));
         receiver     = new BridgeReceiver(address(polyEndpoint), deployer, address(wrappedToken), BSC_EID);
 
         wrappedToken.setBridge(address(receiver));

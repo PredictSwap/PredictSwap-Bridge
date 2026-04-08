@@ -126,7 +126,7 @@ contract OpinionEscrow is OApp, OAppOptionsType3, IERC1155Receiver, ReentrancyGu
     // ─── Admin ────────────────────────────────────────────────────────────────
 
     /// @notice Pause lock(). Incoming unlock messages (_lzReceive) are unaffected
-    ///         and will continue to process — users can always retrieve their tokens.
+    ///         and will continue to process.
     function pause() external onlyOwner { _pause(); }
 
     /// @notice Unpause lock(). Should only be called after setPeer and setDstGasLimit.

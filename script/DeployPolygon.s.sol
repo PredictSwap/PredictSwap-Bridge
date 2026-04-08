@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {WrappedOpinionToken} from "../src/WrappedOpinionToken.sol";
+import {WrappedPredictionToken} from "../src/WrappedPredictionToken.sol";
 import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 
-/// @notice Deploys WrappedOpinionToken and BridgeReceiver on Polygon.
+/// @notice Deploys WrappedPredictionToken and BridgeReceiver on Polygon.
 ///         Must be run after DeployBSC.s.sol — OpinionEscrow address is needed
 ///         for the setPeer step.
 ///
@@ -14,7 +14,7 @@ import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 ///   DEPLOYER_PRIVATE_KEY  Private key of the deployer wallet (pays gas)
 ///   OWNER_ADDRESS         Team multisig — will own both contracts post-deploy
 ///   POLYGON_LZ_ENDPOINT   LayerZero endpoint on Polygon (mainnet: 0x1a44076050125825900e736c501f859c50fE728c)
-///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC (for WrappedOpinionToken metadata)
+///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC (for WrappedPredictionToken metadata)
 ///   BSC_EID               LayerZero endpoint ID for BSC (mainnet: 30102)
 ///   DST_GAS_LIMIT         Gas limit for _lzReceive on BSC (recommended: 150000)
 ///
@@ -43,9 +43,9 @@ contract DeployPolygon is Script {
 
         vm.startBroadcast(deployerKey);
 
-        // 1. Deploy WrappedOpinionToken — no bridge set yet, mint/burn will
+        // 1. Deploy WrappedPredictionToken — no bridge set yet, mint/burn will
         //    revert until setBridge() is called below.
-        WrappedOpinionToken wrappedToken = new WrappedOpinionToken(
+        WrappedPredictionToken wrappedToken = new WrappedPredictionToken(
             owner,
             opinionContract
         );
@@ -58,7 +58,7 @@ contract DeployPolygon is Script {
             bscEid
         );
 
-        // 3. Wire WrappedOpinionToken to BridgeReceiver — one-time, irreversible.
+        // 3. Wire WrappedPredictionToken to BridgeReceiver — one-time, irreversible.
         //    After this, only BridgeReceiver can mint and burn wrapped tokens.
         wrappedToken.setBridge(address(bridgeReceiver));
 
@@ -70,7 +70,7 @@ contract DeployPolygon is Script {
         vm.stopBroadcast();
 
         console.log("=== Polygon Deployment ===");
-        console.log("WrappedOpinionToken:", address(wrappedToken));
+        console.log("WrappedPredictionToken:", address(wrappedToken));
         console.log("BridgeReceiver     :", address(bridgeReceiver));
         console.log("Opinion contract   :", opinionContract);
         console.log("Owner              :", owner);

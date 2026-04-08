@@ -4,17 +4,17 @@ pragma solidity ^0.8.24;
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title WrappedOpinionToken
-/// @notice ERC-1155 wrapped representation of Opinion prediction market shares on Polygon.
-///         1:1 backed by locked shares in OpinionEscrow on BSC — for every token minted
-///         here, exactly one Opinion share is locked in escrow on BSC.
+/// @title WrappedPredictionToken
+/// @notice ERC-1155 wrapped representation of non-native prediction market shares on Polygon.
+///         1:1 backed by locked shares in PredictionMarketEscrow on BSC — for every token minted
+///         here, exactly one PredictionMarket share is locked in escrow on BSC.
 /// @dev Only the authorized bridge (BridgeReceiver) can mint and burn tokens.
-///      Token IDs match the original Opinion ERC-1155 token IDs exactly —
+///      Token IDs match the original PredictionMarket ERC-1155 token IDs exactly —
 ///      no remapping is performed.
 ///
 /// ─── Deployment checklist ────────────────────────────────────────────────────
 ///
-///   1. Deploy WrappedOpinionToken
+///   1. Deploy WrappedPredictionToken
 ///   2. Deploy BridgeReceiver (passing this contract's address)
 ///   3. setBridge(bridgeReceiverAddress) — one-time, irreversible
 ///
@@ -23,7 +23,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///   totalSupply[tokenId] == BridgeReceiver.totalBridged[tokenId] at all times.
 ///   Any deviation indicates a bug or a failed LZ message.
 ///
-contract WrappedOpinionToken is ERC1155, Ownable {
+contract WrappedPredictionToken is ERC1155, Ownable {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -32,10 +32,10 @@ contract WrappedOpinionToken is ERC1155, Ownable {
     ///      Zero address means bridge has not been initialized yet — mint/burn will revert.
     address public bridge;
 
-    /// @notice The Opinion ERC-1155 contract address on BSC that this token wraps.
+    /// @notice The PredictionMarket ERC-1155 contract address on BSC that this token wraps.
     /// @dev Informational — used to document which BSC contract backs these tokens.
-    ///      If Opinion deploys a new contract, a new WrappedOpinionToken must be deployed.
-    address public immutable opinionContract;
+    ///      If PredictionMarket deploys a new contract, a new WrappedPredictionToken must be deployed.
+    address public immutable predictionContract;
 
     /// @notice Total supply per tokenId.
     /// @dev Maintained manually rather than relying on ERC1155 balanceOf scans,
@@ -69,10 +69,10 @@ contract WrappedOpinionToken is ERC1155, Ownable {
     // ─── Constructor ──────────────────────────────────────────────────────────
 
     /// @param _owner           Contract owner — should be team multisig.
-    /// @param _opinionContract The Opinion ERC-1155 contract address on BSC being wrapped.
-    constructor(address _owner, address _opinionContract) ERC1155("") Ownable(_owner) {
-        if (_opinionContract == address(0)) revert ZeroAddress();
-        opinionContract = _opinionContract;
+    /// @param _predictionContract The PredictionMarket ERC-1155 contract address on BSC being wrapped.
+    constructor(address _owner, address _predictionContract) ERC1155("") Ownable(_owner) {
+        if (_predictionContract == address(0)) revert ZeroAddress();
+        predictionContract = _predictionContract;
     }
 
     // ─── Admin ────────────────────────────────────────────────────────────────
@@ -94,10 +94,10 @@ contract WrappedOpinionToken is ERC1155, Ownable {
 
     /// @notice Mint wrapped tokens to a Polygon recipient.
     /// @dev    Called by BridgeReceiver._lzReceive() when a lock confirmation
-    ///         arrives from OpinionEscrow on BSC. Caller must be the authorized bridge.
+    ///         arrives from PredictionMarketEscrow on BSC. Caller must be the authorized bridge.
     ///         totalSupply[_tokenId] is incremented to keep pool accounting in sync.
     /// @param _to      Recipient address on Polygon. Must be non-zero.
-    /// @param _tokenId Opinion ERC-1155 token ID — used directly as the wrapped token ID.
+    /// @param _tokenId PredictionMarket ERC-1155 token ID — used directly as the wrapped token ID.
     /// @param _amount  Number of tokens to mint. Must be > 0.
     function mint(
         address _to,

@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
-import {WrappedOpinionToken} from "../src/WrappedOpinionToken.sol";
+import {WrappedPredictionToken} from "../src/WrappedPredictionToken.sol";
 
-contract WrappedOpinionTokenTest is Test {
-    WrappedOpinionToken public token;
+contract WrappedPredictionTokenTest is Test {
+    WrappedPredictionToken public token;
 
     address public owner           = makeAddr("owner");
     address public bridge          = makeAddr("bridge");
@@ -17,7 +17,7 @@ contract WrappedOpinionTokenTest is Test {
 
     function setUp() public {
         vm.prank(owner);
-        token = new WrappedOpinionToken(owner, opinionContract);
+        token = new WrappedPredictionToken(owner, opinionContract);
 
         vm.prank(owner);
         token.setBridge(bridge);
@@ -58,19 +58,19 @@ contract WrappedOpinionTokenTest is Test {
 
     function test_mint_revertNotBridge() public {
         vm.prank(attacker);
-        vm.expectRevert(WrappedOpinionToken.OnlyBridge.selector);
+        vm.expectRevert(WrappedPredictionToken.OnlyBridge.selector);
         token.mint(user, OPINION_TOKEN_ID, 100);
     }
 
     function test_mint_revertZeroAddress() public {
         vm.prank(bridge);
-        vm.expectRevert(WrappedOpinionToken.ZeroAddress.selector);
+        vm.expectRevert(WrappedPredictionToken.ZeroAddress.selector);
         token.mint(address(0), OPINION_TOKEN_ID, 100);
     }
 
     function test_mint_revertZeroAmount() public {
         vm.prank(bridge);
-        vm.expectRevert(WrappedOpinionToken.ZeroAmount.selector);
+        vm.expectRevert(WrappedPredictionToken.ZeroAmount.selector);
         token.mint(user, OPINION_TOKEN_ID, 0);
     }
 
@@ -103,7 +103,7 @@ contract WrappedOpinionTokenTest is Test {
         token.mint(user, OPINION_TOKEN_ID, 100);
 
         vm.prank(attacker);
-        vm.expectRevert(WrappedOpinionToken.OnlyBridge.selector);
+        vm.expectRevert(WrappedPredictionToken.OnlyBridge.selector);
         token.burn(user, OPINION_TOKEN_ID, 50);
     }
 
@@ -112,7 +112,7 @@ contract WrappedOpinionTokenTest is Test {
         token.mint(user, OPINION_TOKEN_ID, 100);
 
         vm.prank(bridge);
-        vm.expectRevert(WrappedOpinionToken.ZeroAmount.selector);
+        vm.expectRevert(WrappedPredictionToken.ZeroAmount.selector);
         token.burn(user, OPINION_TOKEN_ID, 0);
     }
 
@@ -130,7 +130,7 @@ contract WrappedOpinionTokenTest is Test {
     function test_setBridge_success() public {
         // Deploy a fresh token with no bridge set yet
         vm.prank(owner);
-        WrappedOpinionToken freshToken = new WrappedOpinionToken(owner, opinionContract);
+        WrappedPredictionToken freshToken = new WrappedPredictionToken(owner, opinionContract);
 
         assertEq(freshToken.bridge(), address(0));
 
@@ -143,7 +143,7 @@ contract WrappedOpinionTokenTest is Test {
     function test_setBridge_revertsIfAlreadySet() public {
         // bridge is already set in setUp()
         vm.prank(owner);
-        vm.expectRevert(WrappedOpinionToken.BridgeAlreadySet.selector);
+        vm.expectRevert(WrappedPredictionToken.BridgeAlreadySet.selector);
         token.setBridge(makeAddr("anotherBridge"));
     }
 
@@ -155,7 +155,7 @@ contract WrappedOpinionTokenTest is Test {
 
     function test_setBridge_revertZeroAddress() public {
         vm.prank(owner);
-        vm.expectRevert(WrappedOpinionToken.ZeroAddress.selector);
+        vm.expectRevert(WrappedPredictionToken.ZeroAddress.selector);
         token.setBridge(address(0));
     }
 }
