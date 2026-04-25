@@ -13,25 +13,25 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {WrappedPredictionToken} from "./WrappedPredictionToken.sol";
 
 /// @title BridgeReceiver
-/// @notice Deployed on Polygon. Receives lock confirmations from OpinionEscrow on BSC
+/// @notice Deployed on Polygon. Receives lock confirmations from PredictionMarketEscrow on BSC
 ///         and mints WrappedPredictionToken. Handles bridge-back requests by burning wrapped
 ///         tokens and sending unlock messages to BSC.
-/// @dev Paired 1:1 with a single OpinionEscrow on BSC. If OpinionEscrow is redeployed,
-///      a new BridgeReceiver must also be deployed and wired via setPeer.
+/// @dev Paired 1:1 with a single PredictionMarketEscrow on BSC. If PredictionMarketEscrow is
+///      redeployed, a new BridgeReceiver must also be deployed and wired via setPeer.
 ///
 /// ─── Deployment checklist ────────────────────────────────────────────────────
 ///
 ///   1. Deploy WrappedPredictionToken
 ///   2. Deploy BridgeReceiver (contract starts paused)
 ///   3. WrappedPredictionToken.setBridge(bridgeReceiverAddress) — one-time, irreversible
-///   4. setPeer(bscEid, bytes32(uint256(uint160(opinionEscrowAddress))))
+///   4. setPeer(bscEid, bytes32(uint256(uint160(predictionMarketEscrowAddress))))
 ///   5. setDstGasLimit(400_000)  — enforces minimum gas for _lzReceive on BSC
 ///   6. unpause()
 ///
 /// ─── Message flow ────────────────────────────────────────────────────────────
 ///
-///   Bridge in  (BSC → Polygon): OpinionEscrow sends LZ message → _lzReceive() mints wrapped tokens
-///   Bridge back (Polygon → BSC): user calls bridgeBack() → burns wrapped tokens → LZ message → OpinionEscrow releases locked tokens
+///   Bridge in  (BSC → Polygon): PredictionMarketEscrow sends LZ message → _lzReceive() mints wrapped tokens
+///   Bridge back (Polygon → BSC): user calls bridgeBack() → burns wrapped tokens → LZ message → PredictionMarketEscrow releases locked tokens
 ///
 /// ─── Invariant ───────────────────────────────────────────────────────────────
 ///
@@ -50,7 +50,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     ///      be called with this contract's address before any messages can be processed.
     WrappedPredictionToken public immutable wrappedToken;
 
-    /// @notice LayerZero endpoint ID for BSC (where OpinionEscrow lives).
+    /// @notice LayerZero endpoint ID for BSC (where PredictionMarketEscrow lives).
     /// @dev Mainnet: 30102. Used as destination EID for all outbound LZ messages.
     uint32 public immutable bscEid;
 
@@ -86,7 +86,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     /// @notice Emitted when wrapped tokens are minted after a successful bridge-in from BSC.
     /// @param polygonRecipient Address on Polygon that received the minted wrapped tokens.
-    /// @param tokenId          Opinion ERC-1155 token ID that was bridged.
+    /// @param tokenId          Prediction market ERC-1155 token ID that was bridged.
     /// @param amount           Number of wrapped tokens minted.
     event BridgedIn(
         address indexed polygonRecipient,
@@ -96,8 +96,8 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     /// @notice Emitted when wrapped tokens are burned and an unlock message is sent to BSC.
     /// @param polygonSender Address on Polygon that initiated the bridge-back.
-    /// @param bscRecipient  Address on BSC that will receive the unlocked Opinion tokens.
-    /// @param tokenId       Opinion ERC-1155 token ID being bridged back.
+    /// @param bscRecipient  Address on BSC that will receive the unlocked prediction market tokens.
+    /// @param tokenId       Prediction market ERC-1155 token ID being bridged back.
     /// @param amount        Number of wrapped tokens burned.
     event BridgedBack(
         address indexed polygonSender,
@@ -151,7 +151,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     ///         so callers cannot send messages with less than this gas limit.
     ///         Must be called before unpausing. Recommended value: 200_000+.
     /// @param _gasLimit Minimum gas units for executor on BSC. Must cover
-    ///                  OpinionEscrow._lzReceive: totalLocked update + safeTransferFrom.
+    ///                  PredictionMarketEscrow._lzReceive: totalLocked update + safeTransferFrom.
     function setDstGasLimit(uint128 _gasLimit) external onlyOwner {
         dstGasLimit = _gasLimit;
         EnforcedOptionParam[] memory opts = new EnforcedOptionParam[](1);
@@ -167,7 +167,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
 
     // ─── Receive Lock Confirmation (BSC → Polygon) ────────────────────────────
 
-    /// @notice Receives bridge-in messages from OpinionEscrow on BSC and mints
+    /// @notice Receives bridge-in messages from PredictionMarketEscrow on BSC and mints
     ///         wrapped tokens to the specified Polygon recipient.
     /// @dev    Only callable by the LZ endpoint. Peer verification is enforced by OApp base.
     ///         Intentionally NOT gated by pause — in-flight BSC→Polygon messages must
@@ -201,7 +201,7 @@ contract BridgeReceiver is OApp, OAppOptionsType3, ReentrancyGuard, Pausable {
     ///         transaction reverts atomically and no tokens are lost.
     /// @param _tokenId      WrappedPredictionToken token ID to burn and bridge back.
     /// @param _amount       Number of tokens to burn. Must be > 0.
-    /// @param _bscRecipient Address on BSC to receive the unlocked Opinion tokens. Must be non-zero.
+    /// @param _bscRecipient Address on BSC to receive the unlocked prediction market tokens. Must be non-zero.
     /// @param _options      Additional LZ executor options (e.g. extra gas). Pass empty
     ///                      bytes if none — enforced options provide the gas floor.
     /// @return receipt      LZ messaging receipt containing nonce and fee details.

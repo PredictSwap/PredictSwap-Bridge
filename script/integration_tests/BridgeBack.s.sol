@@ -3,22 +3,22 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 
-/// @notice Burns WrappedOpinionToken on Polygon and sends an unlock message to
-///         OpinionEscrow on BSC, releasing the original Opinion shares to _bscRecipient.
+/// @notice Burns WrappedPredictionToken on Polygon and sends an unlock message to
+///         PredictionMarketEscrow on BSC, releasing the original prediction market shares to _bscRecipient.
 ///
 /// ─── Required env vars ───────────────────────────────────────────────────────
 ///
 ///   DEPLOYER_PRIVATE_KEY            Wallet that holds the wrapped tokens
-///   WRAPPED_OPINION_TOKEN_ADDRESS   WrappedOpinionToken contract on Polygon
+///   WRAPPED_PREDICTION_TOKEN_ADDRESS   WrappedPredictionToken contract on Polygon
 ///   BRIDGE_RECEIVER_ADDRESS         BridgeReceiver contract on Polygon
-///   OWNER_ADDRESS                   BSC recipient of the unlocked Opinion tokens
+///   OWNER_ADDRESS                   BSC recipient of the unlocked prediction market tokens
 ///
 /// ─── Notes ───────────────────────────────────────────────────────────────────
 ///
 ///   - No token approval needed — BridgeReceiver.bridgeBack() burns directly
-///     from msg.sender via WrappedOpinionToken.burn(), which is bridge-only.
+///     from msg.sender via WrappedPredictionToken.burn(), which is bridge-only.
 ///   - Empty options are passed — enforced options on BridgeReceiver provide
-///     the gas floor (400_000) for OpinionEscrow._lzReceive on BSC.
+///     the gas floor (400_000) for PredictionMarketEscrow._lzReceive on BSC.
 ///   - Fee is quoted on-chain and padded with a 10% buffer to avoid underpayment.
 ///     Any excess is refunded to msg.sender by the LZ endpoint.
 ///   - TOKEN ID and AMOUNT are hardcoded below — update before running.
@@ -62,7 +62,7 @@ contract BridgeBack is Script {
 
     // ─── Config — update before running ──────────────────────────────────────
 
-    /// @dev Opinion ERC-1155 token ID to bridge back.
+    /// @dev prediction market ERC-1155 token ID to bridge back.
     uint256 constant TOKEN_ID = 68227038457866748595233145251243944054564947305383894629176574093714476769147;
 
     /// @dev Number of wrapped tokens to burn and bridge back.
@@ -70,7 +70,7 @@ contract BridgeBack is Script {
 
     function run() external {
         uint256 deployerKey    = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address wrappedToken   = vm.envAddress("WRAPPED_OPINION_TOKEN_ADDRESS");
+        address wrappedToken   = vm.envAddress("WRAPPED_PREDICTION_TOKEN_ADDRESS");
         address bridgeReceiver = vm.envAddress("BRIDGE_RECEIVER_ADDRESS");
         address self           = vm.envAddress("OWNER_ADDRESS");
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
-import {OpinionEscrow} from "../src/OpinionEscrow.sol";
+import {PredictionMarketEscrow} from "../src/PredictionMarketEscrow.sol";
 import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 import {WrappedPredictionToken} from "../src/WrappedPredictionToken.sol";
 import {MockEndpointV2} from "./mocks/MockEndpointV2.sol";
@@ -10,7 +10,7 @@ import {MockERC1155} from "./mocks/MockERC1155.sol";
 
 /// @title BridgeIntegrationTest
 /// @notice Full end-to-end test simulating cross-chain bridge operations
-///         between BSC (OpinionEscrow) and Polygon (BridgeReceiver).
+///         between BSC (PredictionMarketEscrow) and Polygon (BridgeReceiver).
 ///         Uses MockEndpointV2 to simulate LayerZero message delivery.
 contract BridgeIntegrationTest is Test {
 
@@ -27,8 +27,8 @@ contract BridgeIntegrationTest is Test {
     // ─── BSC contracts ────────────────────────────────────────────────────────
 
     MockEndpointV2 public bscEndpoint;
-    OpinionEscrow  public escrow;
-    MockERC1155    public opinionToken;
+    PredictionMarketEscrow  public escrow;
+    MockERC1155    public predictionMarketToken;
 
     // ─── Polygon contracts ────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ contract BridgeIntegrationTest is Test {
 
     address public deployer    = makeAddr("deployer");
     address public alice       = makeAddr("alice");       // Polygon EOA receiving wrapped tokens
-    address public aliceBscSafe = makeAddr("aliceBscSafe"); // BSC Safe holding Opinion tokens
+    address public aliceBscSafe = makeAddr("aliceBscSafe"); // BSC Safe holding prediction market tokens
 
     // ─── LZ options ───────────────────────────────────────────────────────────
 
@@ -55,16 +55,16 @@ contract BridgeIntegrationTest is Test {
     function setUp() public {
         // ─── BSC side ─────────────────────────────────────────────────────────
         bscEndpoint  = new MockEndpointV2(BSC_EID);
-        opinionToken = new MockERC1155();
+        predictionMarketToken = new MockERC1155();
 
         vm.prank(deployer);
-        escrow = new OpinionEscrow(address(bscEndpoint), deployer, address(opinionToken), POLYGON_EID);
+        escrow = new PredictionMarketEscrow(address(bscEndpoint), deployer, address(predictionMarketToken), POLYGON_EID);
 
         // ─── Polygon side ─────────────────────────────────────────────────────
         polyEndpoint = new MockEndpointV2(POLYGON_EID);
 
         vm.startPrank(deployer);
-        wrappedToken = new WrappedPredictionToken(deployer, address(opinionToken));
+        wrappedToken = new WrappedPredictionToken(deployer, address(predictionMarketToken));
         receiver     = new BridgeReceiver(address(polyEndpoint), deployer, address(wrappedToken), BSC_EID);
 
         wrappedToken.setBridge(address(receiver));
@@ -80,8 +80,8 @@ contract BridgeIntegrationTest is Test {
         vm.stopPrank();
 
         // ─── Fund Alice ───────────────────────────────────────────────────────
-        opinionToken.mint(aliceBscSafe, TOKEN_ID_YES, 5000);
-        opinionToken.mint(aliceBscSafe, TOKEN_ID_NO,  3000);
+        predictionMarketToken.mint(aliceBscSafe, TOKEN_ID_YES, 5000);
+        predictionMarketToken.mint(aliceBscSafe, TOKEN_ID_NO,  3000);
         vm.deal(aliceBscSafe, 10 ether);
         vm.deal(alice, 10 ether);
     }
@@ -91,7 +91,7 @@ contract BridgeIntegrationTest is Test {
     /// @dev Approve + lock tokens from aliceBscSafe and deliver LZ message to Polygon.
     function _lockAndDeliver(uint256 tokenId, uint256 amount, uint256 msgIndex) internal {
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(tokenId, amount, alice, _option);
@@ -103,14 +103,14 @@ contract BridgeIntegrationTest is Test {
 
     function test_fullFlow_lockAndMint() public {
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 2000, alice, _option);
 
         // BSC state after lock
-        assertEq(opinionToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 3000); // 5000 - 2000
-        assertEq(opinionToken.balanceOf(address(escrow), TOKEN_ID_YES), 2000);
+        assertEq(predictionMarketToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 3000); // 5000 - 2000
+        assertEq(predictionMarketToken.balanceOf(address(escrow), TOKEN_ID_YES), 2000);
         assertEq(escrow.totalLocked(TOKEN_ID_YES), 2000);
 
         bscEndpoint.deliverMessage(0, polyEndpoint);
@@ -127,7 +127,7 @@ contract BridgeIntegrationTest is Test {
         // Phase 1: BSC → Polygon
         // Started with 5000. Lock 1000 → aliceBscSafe has 4000, escrow has 1000
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 1000, alice, _option);
         bscEndpoint.deliverMessage(0, polyEndpoint);
@@ -145,8 +145,8 @@ contract BridgeIntegrationTest is Test {
         polyEndpoint.deliverMessage(0, bscEndpoint);
 
         // aliceBscSafe: 4000 + 600 = 4600. Escrow retains 400.
-        assertEq(opinionToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 4600);
-        assertEq(opinionToken.balanceOf(address(escrow), TOKEN_ID_YES), 400);
+        assertEq(predictionMarketToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 4600);
+        assertEq(predictionMarketToken.balanceOf(address(escrow), TOKEN_ID_YES), 400);
         assertEq(escrow.totalLocked(TOKEN_ID_YES), 400);
     }
 
@@ -154,7 +154,7 @@ contract BridgeIntegrationTest is Test {
 
     function test_fullFlow_completeRoundTrip() public {
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 1000, alice, _option);
@@ -165,8 +165,8 @@ contract BridgeIntegrationTest is Test {
         polyEndpoint.deliverMessage(0, bscEndpoint);
 
         // All state back to original
-        assertEq(opinionToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 5000);
-        assertEq(opinionToken.balanceOf(address(escrow), TOKEN_ID_YES), 0);
+        assertEq(predictionMarketToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 5000);
+        assertEq(predictionMarketToken.balanceOf(address(escrow), TOKEN_ID_YES), 0);
         assertEq(wrappedToken.balanceOf(alice, TOKEN_ID_YES), 0);
         assertEq(wrappedToken.totalSupply(TOKEN_ID_YES), 0);
         assertEq(escrow.totalLocked(TOKEN_ID_YES), 0);
@@ -177,7 +177,7 @@ contract BridgeIntegrationTest is Test {
 
     function test_fullFlow_multipleTokenTypes() public {
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 2000, alice, _option);
@@ -200,14 +200,14 @@ contract BridgeIntegrationTest is Test {
     function test_fullFlow_multipleUsers() public {
         address bob        = makeAddr("bob");
         address bobBscSafe = makeAddr("bobBscSafe");
-        opinionToken.mint(bobBscSafe, TOKEN_ID_YES, 3000);
+        predictionMarketToken.mint(bobBscSafe, TOKEN_ID_YES, 3000);
         vm.deal(bobBscSafe, 10 ether);
         vm.deal(bob, 10 ether);
 
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
         vm.prank(bobBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 1000, alice, _option);
@@ -220,14 +220,14 @@ contract BridgeIntegrationTest is Test {
         assertEq(wrappedToken.balanceOf(alice, TOKEN_ID_YES), 1000);
         assertEq(wrappedToken.balanceOf(bob, TOKEN_ID_YES), 2000);
         assertEq(wrappedToken.totalSupply(TOKEN_ID_YES), 3000);
-        assertEq(opinionToken.balanceOf(address(escrow), TOKEN_ID_YES), 3000);
+        assertEq(predictionMarketToken.balanceOf(address(escrow), TOKEN_ID_YES), 3000);
     }
 
     // ─── Bridge back to different BSC address ─────────────────────────────────
 
     function test_bridgeBack_toDifferentAddress() public {
         vm.prank(aliceBscSafe);
-        opinionToken.setApprovalForAll(address(escrow), true);
+        predictionMarketToken.setApprovalForAll(address(escrow), true);
 
         vm.prank(aliceBscSafe);
         escrow.lock{value: 0.01 ether}(TOKEN_ID_YES, 1000, alice, _option);
@@ -239,7 +239,7 @@ contract BridgeIntegrationTest is Test {
         receiver.bridgeBack{value: 0.01 ether}(TOKEN_ID_YES, 1000, alternateRecipient, _option);
         polyEndpoint.deliverMessage(0, bscEndpoint);
 
-        assertEq(opinionToken.balanceOf(alternateRecipient, TOKEN_ID_YES), 1000);
-        assertEq(opinionToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 4000);
+        assertEq(predictionMarketToken.balanceOf(alternateRecipient, TOKEN_ID_YES), 1000);
+        assertEq(predictionMarketToken.balanceOf(aliceBscSafe, TOKEN_ID_YES), 4000);
     }
 }

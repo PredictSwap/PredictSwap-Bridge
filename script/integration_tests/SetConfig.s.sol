@@ -17,7 +17,7 @@ contract SetConfig is Script {
         address _endpoint = vm.envAddress("BSC_LZ_ENDPOINT");
         ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(_endpoint);
 
-        address oapp = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        address oapp = vm.envAddress("PREDICTION_MARKET_ESCROW_ADDRESS");
         address sendLib = vm.envAddress("BSC_SEND_LIB");
         address receiveLib = vm.envAddress("BSC_RECEIVE_LIB");
         // address dvn         = vm.envAddress("BSC_DVN");

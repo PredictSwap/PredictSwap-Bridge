@@ -7,12 +7,12 @@ import {UlnConfig} from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/UlnBa
 import {ExecutorConfig} from "@layerzerolabs/lz-evm-messagelib-v2/contracts/SendLibBase.sol";
 
 /// @notice Read-only script to inspect LayerZero ULN and Executor configuration
-///         for both OpinionEscrow (BSC) and BridgeReceiver (Polygon).
+///         for both PredictionMarketEscrow (BSC) and BridgeReceiver (Polygon).
 ///         Use after SetConfig.s.sol to verify settings were applied correctly.
 ///
 /// ─── Required env vars ───────────────────────────────────────────────────────
 ///
-///   OPINION_ESCROW_ADDRESS    OpinionEscrow contract on BSC
+///   PREDICTION_MARKET_ESCROW_ADDRESS    PredictionMarketEscrow contract on BSC
 ///   BRIDGE_RECEIVER_ADDRESS   BridgeReceiver contract on Polygon
 ///   BSC_LZ_ENDPOINT           LayerZero endpoint on BSC
 ///   POLYGON_LZ_ENDPOINT       LayerZero endpoint on Polygon
@@ -66,7 +66,7 @@ contract GetConfigScript is Script {
     }
 
     /// @notice Print ULN + Executor config for outgoing Polygon → BSC messages.
-    ///         Shows which DVNs confirm and which executor delivers to OpinionEscrow.
+    ///         Shows which DVNs confirm and which executor delivers to PredictionMarketEscrow.
     function getPolygonSend() external view {
         address endpoint = vm.envAddress("POLYGON_LZ_ENDPOINT");
         address oapp     = vm.envAddress("BRIDGE_RECEIVER_ADDRESS");
@@ -87,12 +87,12 @@ contract GetConfigScript is Script {
     ///         Shows which DVNs confirm and which executor delivers to BridgeReceiver.
     function getBSCSend() external view {
         address endpoint = vm.envAddress("BSC_LZ_ENDPOINT");
-        address oapp     = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        address oapp     = vm.envAddress("PREDICTION_MARKET_ESCROW_ADDRESS");
         address lib      = vm.envAddress("BSC_SEND_LIB");
         uint32  eid      = uint32(vm.envUint("POLYGON_EID"));
 
         console.log("=== BSC Send (BSC -> Polygon) ===");
-        console.log("OApp (OpinionEscrow)      :", oapp);
+        console.log("OApp (PredictionMarketEscrow)      :", oapp);
         console.log("Send lib                  :", lib);
         console.log("Destination EID (Polygon) :", eid);
         _printULN(endpoint, oapp, lib, eid);
@@ -100,15 +100,15 @@ contract GetConfigScript is Script {
     }
 
     /// @notice Print ULN config for incoming Polygon → BSC messages.
-    ///         Shows which DVNs must confirm messages before OpinionEscrow._lzReceive executes.
+    ///         Shows which DVNs must confirm messages before PredictionMarketEscrow._lzReceive executes.
     function getBSCReceive() external view {
         address endpoint = vm.envAddress("BSC_LZ_ENDPOINT");
-        address oapp     = vm.envAddress("OPINION_ESCROW_ADDRESS");
+        address oapp     = vm.envAddress("PREDICTION_MARKET_ESCROW_ADDRESS");
         address lib      = vm.envAddress("BSC_RECEIVE_LIB");
         uint32  eid      = uint32(vm.envUint("POLYGON_EID"));
 
         console.log("=== BSC Receive (Polygon -> BSC) ===");
-        console.log("OApp (OpinionEscrow)    :", oapp);
+        console.log("OApp (PredictionMarketEscrow)    :", oapp);
         console.log("Receive lib             :", lib);
         console.log("Source EID (Polygon)    :", eid);
         _printULN(endpoint, oapp, lib, eid);

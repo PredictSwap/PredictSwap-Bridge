@@ -6,7 +6,7 @@ import {WrappedPredictionToken} from "../src/WrappedPredictionToken.sol";
 import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 
 /// @notice Deploys WrappedPredictionToken and BridgeReceiver on Polygon.
-///         Must be run after DeployBSC.s.sol — OpinionEscrow address is needed
+///         Must be run after DeployBSC.s.sol — PredictionMarketEscrow address is needed
 ///         for the setPeer step.
 ///
 /// ─── Required env vars ───────────────────────────────────────────────────────
@@ -14,14 +14,14 @@ import {BridgeReceiver} from "../src/BridgeReceiver.sol";
 ///   DEPLOYER_PRIVATE_KEY  Private key of the deployer wallet (pays gas)
 ///   OWNER_ADDRESS         Team multisig — will own both contracts post-deploy
 ///   POLYGON_LZ_ENDPOINT   LayerZero endpoint on Polygon (mainnet: 0x1a44076050125825900e736c501f859c50fE728c)
-///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC (for WrappedPredictionToken metadata)
+///   PREDICTION_MARKET_CONTRACT      prediction market ERC-1155 contract address on BSC (for WrappedPredictionToken metadata)
 ///   BSC_EID               LayerZero endpoint ID for BSC (mainnet: 30102)
 ///   DST_GAS_LIMIT         Gas limit for _lzReceive on BSC (recommended: 150000)
 ///
 /// ─── Post-deploy steps (run separately after both chains deployed) ────────────
 ///
-///   1. bridgeReceiver.setPeer(bscEid, bytes32(uint256(uint160(opinionEscrowAddress))))
-///   2. opinionEscrow.setPeer(polygonEid, bytes32(uint256(uint160(bridgeReceiverAddress))))
+///   1. bridgeReceiver.setPeer(bscEid, bytes32(uint256(uint160(predictionMarketEscrowAddress))))
+///   2. predictionMarketEscrow.setPeer(polygonEid, bytes32(uint256(uint160(bridgeReceiverAddress))))
 ///   3. unpause both contracts
 ///
 /// ─── Run ─────────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ contract DeployPolygon is Script {
         uint256 deployerKey  = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address lzEndpoint   = vm.envAddress("POLYGON_LZ_ENDPOINT");
         address owner        = vm.envAddress("OWNER_ADDRESS");
-        address opinionContract = vm.envAddress("OPINION_CONTRACT");
+        address predictionMarketContract = vm.envAddress("PREDICTION_MARKET_CONTRACT");
         uint32  bscEid       = uint32(vm.envUint("BSC_EID"));
         uint128 dstGasLimit  = uint128(vm.envUint("DST_GAS_LIMIT"));
 
@@ -47,7 +47,7 @@ contract DeployPolygon is Script {
         //    revert until setBridge() is called below.
         WrappedPredictionToken wrappedToken = new WrappedPredictionToken(
             owner,
-            opinionContract
+            predictionMarketContract
         );
 
         // 2. Deploy BridgeReceiver — starts paused (safe before peer and bridge are set).
@@ -72,7 +72,7 @@ contract DeployPolygon is Script {
         console.log("=== Polygon Deployment ===");
         console.log("WrappedPredictionToken:", address(wrappedToken));
         console.log("BridgeReceiver     :", address(bridgeReceiver));
-        console.log("Opinion contract   :", opinionContract);
+        console.log("Prediction market contract   :", predictionMarketContract);
         console.log("Owner              :", owner);
         console.log("LZ Endpoint        :", lzEndpoint);
         console.log("BSC EID            :", bscEid);
@@ -82,7 +82,7 @@ contract DeployPolygon is Script {
         console.log("");
         console.log("=== Next steps ===");
         console.log("1. setPeer on BridgeReceiver -> run SetPeer.s.sol");
-        console.log("2. setPeer on OpinionEscrow  -> run SetPeer.s.sol");
+        console.log("2. setPeer on PredictionMarketEscrow  -> run SetPeer.s.sol");
         console.log("3. unpause both contracts    -> run Unpause.s.sol");
     }
 }

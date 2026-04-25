@@ -1,0 +1,488 @@
+{
+  "meta": {
+    "repo": "/home/iurii2002/crypto_code/PythonProject/predator3/predator3. Nft bridge",
+    "src_dir": "src",
+    "generated_at": "2026-04-25T05:44:54.330913+00:00",
+    "git_head": "0e580e0",
+    "git_branch": "main",
+    "total_commits": 13,
+    "total_source_files": 3,
+    "analysis_time_ms": 1071
+  },
+  "repo_shape": {
+    "classification": "normal_dev",
+    "total_commits": 13,
+    "source_touching_commits": 6,
+    "bulk_import_sha": null,
+    "date_spread_days": 27,
+    "first_commit_date": "2026-03-20",
+    "last_commit_date": "2026-04-16",
+    "signals": [
+      "Date spread: 27 days",
+      "6 commits touch source files out of 13 total"
+    ]
+  },
+  "fix_candidates": [
+    {
+      "sha": "5715f1e",
+      "full_sha": "5715f1e602ab39dbab63f4cc732a0e719073611f",
+      "date": "2026-03-20",
+      "author": "Iurii",
+      "subject": "first commit",
+      "score": 17,
+      "reasons": [
+        "unclassified",
+        "adds runtime guards (+6/-0)",
+        "tightens access control (+18/-0)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 4 security domains (access_control, fund_flows, signatures, state_machines)",
+        "focused change (3 source files)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "src/BridgeReceiver.sol",
+        "src/OpinionEscrow.sol",
+        "src/WrappedOpinionToken.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 433
+    },
+    {
+      "sha": "90d3795",
+      "full_sha": "90d3795576023a012460f755300b887a7b19b323",
+      "date": "2026-04-07",
+      "author": "Iurii",
+      "subject": "added reentrancy guard",
+      "score": 16,
+      "reasons": [
+        "explicit security language",
+        "tightens access control (+4/-2)",
+        "spans 4 security domains (access_control, fund_flows, signatures, state_machines)",
+        "focused change (2 source files)"
+      ],
+      "source_files_touched": [
+        "src/BridgeReceiver.sol",
+        "src/OpinionEscrow.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 14
+    },
+    {
+      "sha": "82b4dfc",
+      "full_sha": "82b4dfcd7701d2e13239962471ee0b515759c5db",
+      "date": "2026-04-07",
+      "author": "Iurii",
+      "subject": "updated dstGasSet function. Added notations",
+      "score": 15,
+      "reasons": [
+        "unclassified",
+        "rewrites runtime guards (+3/-3)",
+        "rewrites access control (+4/-4)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 4 security domains (access_control, fund_flows, signatures, state_machines)",
+        "focused change (3 source files)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "src/BridgeReceiver.sol",
+        "src/OpinionEscrow.sol",
+        "src/WrappedOpinionToken.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 432
+    },
+    {
+      "sha": "0e580e0",
+      "full_sha": "0e580e051cbc766733a376b90cc29a24a6b27956",
+      "date": "2026-04-16",
+      "author": "Iurii",
+      "subject": "pashov skill findings updated",
+      "score": 14,
+      "reasons": [
+        "unclassified",
+        "removes runtime guards (+0/-1)",
+        "loosens access control (+3/-11)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "focused change (1 source files)",
+        "net code removal"
+      ],
+      "source_files_touched": [
+        "src/PredictFunEscrow.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 291
+    },
+    {
+      "sha": "44cea07",
+      "full_sha": "44cea0761ee8ea030cb94273754d7218a63c0917",
+      "date": "2026-04-13",
+      "author": "Iurii",
+      "subject": "added PredictFunEscrow with correct naming",
+      "score": 13,
+      "reasons": [
+        "unclassified",
+        "adds runtime guards (+1/-0)",
+        "tightens access control (+8/-0)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "focused change (1 source files)"
+      ],
+      "source_files_touched": [
+        "src/PredictFunEscrow.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 291
+    },
+    {
+      "sha": "0b6f447",
+      "full_sha": "0b6f447160f24d81d38ef38802189e306cee643c",
+      "date": "2026-04-08",
+      "author": "Iurii",
+      "subject": "changed OpinionToken to PredictionToken",
+      "score": 7,
+      "reasons": [
+        "unclassified",
+        "changes accounting/balance logic",
+        "spans 4 security domains (access_control, fund_flows, signatures, state_machines)",
+        "focused change (2 source files)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "src/BridgeReceiver.sol",
+        "src/OpinionEscrow.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 34
+    }
+  ],
+  "dangerous_area_changes": {
+    "access_control": {
+      "commit_count": 4,
+      "files": [
+        "src/BridgeReceiver.sol"
+      ],
+      "commits": [
+        {
+          "sha": "0b6f447",
+          "date": "2026-04-08",
+          "subject": "changed OpinionToken to PredictionToken"
+        },
+        {
+          "sha": "90d3795",
+          "date": "2026-04-07",
+          "subject": "added reentrancy guard"
+        },
+        {
+          "sha": "82b4dfc",
+          "date": "2026-04-07",
+          "subject": "updated dstGasSet function. Added notations"
+        },
+        {
+          "sha": "5715f1e",
+          "date": "2026-03-20",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "fund_flows": {
+      "commit_count": 4,
+      "files": [
+        "src/BridgeReceiver.sol"
+      ],
+      "commits": [
+        {
+          "sha": "0b6f447",
+          "date": "2026-04-08",
+          "subject": "changed OpinionToken to PredictionToken"
+        },
+        {
+          "sha": "90d3795",
+          "date": "2026-04-07",
+          "subject": "added reentrancy guard"
+        },
+        {
+          "sha": "82b4dfc",
+          "date": "2026-04-07",
+          "subject": "updated dstGasSet function. Added notations"
+        },
+        {
+          "sha": "5715f1e",
+          "date": "2026-03-20",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "signatures": {
+      "commit_count": 4,
+      "files": [
+        "src/BridgeReceiver.sol"
+      ],
+      "commits": [
+        {
+          "sha": "0b6f447",
+          "date": "2026-04-08",
+          "subject": "changed OpinionToken to PredictionToken"
+        },
+        {
+          "sha": "90d3795",
+          "date": "2026-04-07",
+          "subject": "added reentrancy guard"
+        },
+        {
+          "sha": "82b4dfc",
+          "date": "2026-04-07",
+          "subject": "updated dstGasSet function. Added notations"
+        },
+        {
+          "sha": "5715f1e",
+          "date": "2026-03-20",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "state_machines": {
+      "commit_count": 4,
+      "files": [
+        "src/BridgeReceiver.sol"
+      ],
+      "commits": [
+        {
+          "sha": "0b6f447",
+          "date": "2026-04-08",
+          "subject": "changed OpinionToken to PredictionToken"
+        },
+        {
+          "sha": "90d3795",
+          "date": "2026-04-07",
+          "subject": "added reentrancy guard"
+        },
+        {
+          "sha": "82b4dfc",
+          "date": "2026-04-07",
+          "subject": "updated dstGasSet function. Added notations"
+        },
+        {
+          "sha": "5715f1e",
+          "date": "2026-03-20",
+          "subject": "first commit"
+        }
+      ]
+    }
+  },
+  "late_changes": {
+    "window_days": 30,
+    "cutoff_date": "2026-03-17",
+    "latest_commit_date": "2026-04-16",
+    "late_commits": [
+      {
+        "sha": "0e580e0",
+        "date": "2026-04-16",
+        "author": "Iurii",
+        "subject": "pashov skill findings updated",
+        "source_files": [
+          "src/PredictFunEscrow.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 291
+      },
+      {
+        "sha": "44cea07",
+        "date": "2026-04-13",
+        "author": "Iurii",
+        "subject": "added PredictFunEscrow with correct naming",
+        "source_files": [
+          "src/PredictFunEscrow.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 291
+      },
+      {
+        "sha": "0b6f447",
+        "date": "2026-04-08",
+        "author": "Iurii",
+        "subject": "changed OpinionToken to PredictionToken",
+        "source_files": [
+          "src/BridgeReceiver.sol",
+          "src/OpinionEscrow.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 34
+      },
+      {
+        "sha": "90d3795",
+        "date": "2026-04-07",
+        "author": "Iurii",
+        "subject": "added reentrancy guard",
+        "source_files": [
+          "src/BridgeReceiver.sol",
+          "src/OpinionEscrow.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 14
+      },
+      {
+        "sha": "82b4dfc",
+        "date": "2026-04-07",
+        "author": "Iurii",
+        "subject": "updated dstGasSet function. Added notations",
+        "source_files": [
+          "src/BridgeReceiver.sol",
+          "src/OpinionEscrow.sol",
+          "src/WrappedOpinionToken.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 432
+      },
+      {
+        "sha": "5715f1e",
+        "date": "2026-03-20",
+        "author": "Iurii",
+        "subject": "first commit",
+        "source_files": [
+          "src/BridgeReceiver.sol",
+          "src/OpinionEscrow.sol",
+          "src/WrappedOpinionToken.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 433
+      }
+    ],
+    "source_without_test_count": 3,
+    "total_late_source_commits": 6
+  },
+  "forked_deps": {
+    "detected_libs": [
+      {
+        "name": "LayerZero-v2",
+        "path": "lib/LayerZero-v2",
+        "known_upstream": null,
+        "is_submodule": true,
+        "is_internalized": false,
+        "sol_file_count": 249,
+        "pragma_versions": [
+          ">=0.4.22 <0.9.0",
+          ">=0.5.0",
+          ">=0.6.0 <0.9.0",
+          ">=0.6.2",
+          ">=0.6.2 <0.9.0",
+          ">=0.7.0 <0.9.0",
+          ">=0.8.0",
+          ">=0.8.0 <0.9.0",
+          "^0.8.0",
+          "^0.8.15",
+          "^0.8.17",
+          "^0.8.18",
+          "^0.8.19",
+          "^0.8.20",
+          "^0.8.22"
+        ],
+        "notes": []
+      },
+      {
+        "name": "devtools",
+        "path": "lib/devtools",
+        "known_upstream": null,
+        "is_submodule": true,
+        "is_internalized": false,
+        "sol_file_count": 424,
+        "pragma_versions": [
+          "0.8.22",
+          ">=0.4.22 <0.9.0",
+          ">=0.5.0",
+          ">=0.6.0 <0.9.0",
+          ">=0.6.2",
+          ">=0.6.2 <0.9.0",
+          ">=0.7.0 <0.9.0",
+          ">=0.8.0",
+          ">=0.8.0 <0.9.0",
+          "^0.8.0",
+          "^0.8.13",
+          "^0.8.15",
+          "^0.8.18",
+          "^0.8.20",
+          "^0.8.22"
+        ],
+        "notes": []
+      },
+      {
+        "name": "openzeppelin-contracts",
+        "path": "lib/openzeppelin-contracts",
+        "known_upstream": "OpenZeppelin",
+        "is_submodule": true,
+        "is_internalized": false,
+        "sol_file_count": 433,
+        "pragma_versions": [
+          ">=0.4.11",
+          ">=0.4.16",
+          ">=0.4.22 <0.9.0",
+          ">=0.5.0",
+          ">=0.6.0 <0.9.0",
+          ">=0.6.2",
+          ">=0.6.2 <0.9.0",
+          ">=0.6.9",
+          ">=0.7.0 <0.9.0",
+          ">=0.8.0 <0.9.0",
+          ">=0.8.4",
+          "^0.8.20",
+          "^0.8.21",
+          "^0.8.22",
+          "^0.8.24",
+          "^0.8.26",
+          "^0.8.27"
+        ],
+        "notes": [
+          "Pragma '>=0.4.11' differs from expected upstream versions",
+          "Pragma '>=0.4.16' differs from expected upstream versions",
+          "Pragma '>=0.4.22 <0.9.0' differs from expected upstream versions",
+          "Pragma '>=0.5.0' differs from expected upstream versions",
+          "Pragma '>=0.6.0 <0.9.0' differs from expected upstream versions",
+          "Pragma '>=0.6.2' differs from expected upstream versions",
+          "Pragma '>=0.6.2 <0.9.0' differs from expected upstream versions",
+          "Pragma '>=0.6.9' differs from expected upstream versions",
+          "Pragma '>=0.7.0 <0.9.0' differs from expected upstream versions"
+        ]
+      },
+      {
+        "name": "solidity-bytes-utils",
+        "path": "lib/solidity-bytes-utils",
+        "known_upstream": null,
+        "is_submodule": true,
+        "is_internalized": false,
+        "sol_file_count": 4,
+        "pragma_versions": [
+          ">=0.8.0 <0.9.0"
+        ],
+        "notes": []
+      }
+    ],
+    "removed_submodules": []
+  },
+  "tech_debt": {
+    "total_count": 0,
+    "items": [],
+    "files_with_debt": 0,
+    "capped": false
+  },
+  "dev_patterns": {
+    "test_co_change_rate": 0.5,
+    "fix_without_test_rate": 0.5,
+    "avg_commit_size": 249.2,
+    "avg_commit_size_note": null,
+    "single_developer_pct": 1.0,
+    "top_contributor": "Iurii",
+    "contributor_breakdown": [
+      {
+        "author": "Iurii",
+        "lines_added": 1101,
+        "pct": 1.0
+      }
+    ]
+  }
+}

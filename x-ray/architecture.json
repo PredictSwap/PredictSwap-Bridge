@@ -1,0 +1,29 @@
+{
+  "title": "PredictSwap Bridge Architecture",
+  "nodes": [
+    {"id": "user_bsc", "label": "User (BSC)", "subtitle": "Token Holder", "type": "actor", "row": 0},
+    {"id": "user_poly", "label": "User (Polygon)", "subtitle": "Wrapped Holder", "type": "actor", "row": 0},
+    {"id": "owner", "label": "Owner", "subtitle": "Multisig", "type": "actor", "row": 0},
+    {"id": "escrow", "label": "PredictionMarketEscrow", "subtitle": "BSC Lock/Unlock", "type": "protocol", "row": 1},
+    {"id": "receiver", "label": "BridgeReceiver", "subtitle": "Polygon Mint/Burn", "type": "protocol", "row": 1},
+    {"id": "wrapped", "label": "WrappedPredictionToken", "subtitle": "ERC-1155", "type": "protocol", "row": 2},
+    {"id": "lz", "label": "LayerZero V2", "subtitle": "Cross-chain Messaging", "type": "external", "row": 2},
+    {"id": "erc1155", "label": "PredictionMarket ERC-1155", "subtitle": "BSC Source Token", "type": "external", "row": 2}
+  ],
+  "edges": [
+    {"from": "user_bsc", "to": "escrow", "label": "lock()"},
+    {"from": "user_poly", "to": "receiver", "label": "bridgeBack()"},
+    {"from": "owner", "to": "escrow", "label": "admin ops"},
+    {"from": "owner", "to": "receiver", "label": "admin ops"},
+    {"from": "escrow", "to": "lz", "label": "send message"},
+    {"from": "lz", "to": "receiver", "label": "deliver message"},
+    {"from": "receiver", "to": "wrapped", "label": "mint / burn"},
+    {"from": "escrow", "to": "erc1155", "label": "safeTransferFrom"},
+    {"from": "lz", "to": "escrow", "label": "deliver unlock"},
+    {"from": "receiver", "to": "lz", "label": "send unlock"}
+  ],
+  "groups": [
+    {"label": "BSC Chain", "nodes": ["escrow"]},
+    {"label": "Polygon Chain", "nodes": ["receiver", "wrapped"]}
+  ]
+}

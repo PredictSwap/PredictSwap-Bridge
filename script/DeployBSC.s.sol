@@ -2,16 +2,16 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {OpinionEscrow} from "../src/OpinionEscrow.sol";
+import {PredictionMarketEscrow} from "../src/PredictionMarketEscrow.sol";
 
-/// @notice Deploys OpinionEscrow on BSC.
+/// @notice Deploys PredictionMarketEscrow on BSC.
 ///
 /// ─── Required env vars ───────────────────────────────────────────────────────
 ///
 ///   DEPLOYER_PRIVATE_KEY  Private key of the deployer wallet (pays gas)
 ///   OWNER_ADDRESS         Team multisig — will own the contract post-deploy
 ///   BSC_LZ_ENDPOINT       LayerZero endpoint on BSC (mainnet: 0x1a44076050125825900e736c501f859c50fE728c)
-///   OPINION_CONTRACT      Opinion ERC-1155 contract address on BSC
+///   PREDICTION_MARKET_CONTRACT      prediction market ERC-1155 contract address on BSC
 ///   POLYGON_EID           LayerZero endpoint ID for Polygon (mainnet: 30109)
 ///   DST_GAS_LIMIT         Gas limit for _lzReceive on Polygon (recommended: 200000)
 ///
@@ -33,17 +33,17 @@ contract DeployBSC is Script {
         uint256 deployerKey   = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address lzEndpoint    = vm.envAddress("BSC_LZ_ENDPOINT");
         address owner         = vm.envAddress("OWNER_ADDRESS");
-        address opinionContract = vm.envAddress("OPINION_CONTRACT");
+        address predictionMarketContract = vm.envAddress("PREDICTION_MARKET_CONTRACT");
         uint32  polygonEid    = uint32(vm.envUint("POLYGON_EID"));
         uint128 dstGasLimit   = uint128(vm.envUint("DST_GAS_LIMIT"));
 
         vm.startBroadcast(deployerKey);
 
         // 1. Deploy — contract starts paused (safe before peer is set)
-        OpinionEscrow escrow = new OpinionEscrow(
+        PredictionMarketEscrow escrow = new PredictionMarketEscrow(
             lzEndpoint,
             owner,
-            opinionContract,
+            predictionMarketContract,
             polygonEid
         );
 
@@ -57,8 +57,8 @@ contract DeployBSC is Script {
         vm.stopBroadcast();
 
         console.log("=== BSC Deployment ===");
-        console.log("OpinionEscrow    :", address(escrow));
-        console.log("Opinion contract :", opinionContract);
+        console.log("PredictionMarketEscrow    :", address(escrow));
+        console.log("Prediction market contract :", predictionMarketContract);
         console.log("Owner            :", owner);
         console.log("LZ Endpoint      :", lzEndpoint);
         console.log("Polygon EID      :", polygonEid);
